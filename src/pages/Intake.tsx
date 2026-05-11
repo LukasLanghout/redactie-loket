@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowUp, Check, Lock, Paperclip, ShieldCheck, X } from 'lucide-react';
@@ -40,6 +40,9 @@ const FILES_PROMPT = "Heb je documenten, foto's of opnames als bewijs? Sleep ze 
 export default function Intake() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedTopic = searchParams.get('topic');
+  const preselectedArticle = searchParams.get('article');
 
   const { data: topics = [] } = useQuery<Topic[]>({
     queryKey: ['topics'],
@@ -72,6 +75,29 @@ export default function Intake() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [msgs, typing]);
+
+  // Auto-select topic from URL param (e.g. ?topic=Gezondheidszorg&article=lange+wachttijden)
+  const didPreselect = useRef(false);
+  useEffect(() => {
+    if (didPreselect.current) return;
+    if (!preselectedTopic || topics.length === 0 || step !== 'topic') return;
+    const match = topics.find(
+      (t) => t.name.toLowerCase() === preselectedTopic.toLowerCase()
+    );
+    if (!match) return;
+    didPreselect.current = true;
+    setTopicId(match.id);
+    setTopicName(match.name);
+    const intro = preselectedArticle
+      ? `Je tip gaat over het artikel: "${preselectedArticle}" (onderwerp: ${match.icon ?? ''} ${match.name}).`
+      : `Onderwerp: ${match.icon ?? ''} ${match.name}`;
+    setMsgs((m) => [
+      ...m,
+      { id: uid(), from: 'user', text: intro },
+      { id: 'preselect-prompt', from: 'bot', text: STORY_PROMPT },
+    ]);
+    setStep('story');
+  }, [preselectedTopic, preselectedArticle, topics, step]);
 
   function uid() { return Math.random().toString(36).slice(2); }
 

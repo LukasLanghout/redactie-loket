@@ -1,9 +1,44 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowRight, ShieldCheck, Eye, Lock } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Eye, Lock, MessageSquare } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Topic, Submission } from '../lib/types';
+
+// Featured articles — each linked to a topic in the database.
+// Tipping on an article pre-fills the topic in the intake form via URL params.
+const FEATURED_ARTICLES = [
+  {
+    slug: 'wachttijden-ggz',
+    title: 'Maanden wachten op de GGZ: jongeren in de knel',
+    excerpt:
+      'Wachtlijsten in de jeugd-GGZ lopen op tot meer dan een jaar. Hulpverleners luiden de noodklok en ouders vertellen wat er in die tijd op het spel staat.',
+    topic: 'Gezondheidszorg',
+    tag: 'Onderzoek',
+    accent: '#00bcd4',
+    emoji: '🏥',
+  },
+  {
+    slug: 'huisjesmelkers-randstad',
+    title: 'Schimmige huisbazen: hoe huurders worden uitgeknepen',
+    excerpt:
+      'In de Randstad rekenen verhuurders honderden euro\'s te veel huur. We zoeken huurders die ervaringen willen delen — anoniem mag.',
+    topic: 'Wonen',
+    tag: 'Lopend onderzoek',
+    accent: '#26a69a',
+    emoji: '🏠',
+  },
+  {
+    slug: 'lerarentekort-basisschool',
+    title: 'Lerarentekort: noodgrepen op basisscholen onthuld',
+    excerpt:
+      'Directeuren grijpen naar bedenkelijke noodoplossingen om hun roosters rond te krijgen. Wat zie jij gebeuren op de school van je kinderen?',
+    topic: 'Onderwijs',
+    tag: 'Reportage',
+    accent: '#7c4dff',
+    emoji: '🎓',
+  },
+] as const;
 
 export default function Home() {
   const { data: topics = [] } = useQuery<Topic[]>({
@@ -116,6 +151,65 @@ export default function Home() {
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Featured artikelen met directe tip-CTA */}
+      <section className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="mx-auto max-w-7xl px-6 py-16">
+          <div className="mb-8 flex items-end justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-pointer mb-2">
+                Uitgelichte artikelen
+              </div>
+              <h2 className="font-serif text-3xl md:text-4xl">Waar werkt de redactie aan?</h2>
+              <p className="mt-2 text-sm text-slate-500 max-w-2xl">
+                Herken je iets in deze verhalen? Stuur direct een tip — het onderwerp is dan al ingevuld.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {FEATURED_ARTICLES.map((a) => (
+              <motion.article
+                key={a.slug}
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.5 }}
+                className="flex flex-col border border-slate-200 dark:border-slate-800 bg-stone-50 dark:bg-slate-950"
+              >
+                <div
+                  className="flex h-40 items-center justify-center text-6xl"
+                  style={{ backgroundColor: a.accent + '22' }}
+                >
+                  <span aria-hidden>{a.emoji}</span>
+                </div>
+                <div className="flex flex-1 flex-col p-6">
+                  <div
+                    className="mb-3 inline-flex w-fit items-center gap-2 border px-2 py-0.5 text-[10px] uppercase tracking-widest"
+                    style={{ borderColor: a.accent, color: a.accent }}
+                  >
+                    {a.tag} · {a.topic}
+                  </div>
+                  <h3 className="font-serif text-xl leading-tight mb-2">{a.title}</h3>
+                  <p className="flex-1 text-sm text-slate-600 dark:text-slate-400 mb-5">
+                    {a.excerpt}
+                  </p>
+                  <Link
+                    to={`/intake?topic=${encodeURIComponent(a.topic)}&article=${encodeURIComponent(
+                      a.title
+                    )}`}
+                    className="group inline-flex items-center justify-between gap-2 bg-pointer px-4 py-3 text-sm font-medium text-pointer-foreground transition-opacity hover:opacity-90"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" /> Stuur tip over dit artikel
+                    </span>
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </div>
+              </motion.article>
+            ))}
+          </div>
         </div>
       </section>
 
