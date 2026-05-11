@@ -12,6 +12,7 @@ import type { Topic } from '../lib/types';
 type Step =
   | 'topic'
   | 'story'
+  | 'ask_improve'
   | 'followup1'
   | 'followup2'
   | 'when'
@@ -29,6 +30,7 @@ type Msg = BotMsg | UserMsg | FileMsg;
 
 const TOPIC_PROMPT = "Welkom bij Redactieloket. Ik help je in een paar minuten je verhaal te delen met onze redactie. Waar gaat het over? Kies een onderwerp of typ je eigen omschrijving.";
 const STORY_PROMPT = "Vertel het in je eigen woorden. Wat is er gebeurd? Hoe meer concrete details (wat, wie, wanneer, waar), hoe beter we het kunnen onderzoeken.";
+const ASK_IMPROVE_PROMPT = "Wil je dat ik je verhaal beter maak en aanvullen met doorvragen? Dit helpt de redactie meer te begrijpen.";
 const WHEN_PROMPT = "Wanneer en waar speelde dit zich af? (Datum, plaats — zo precies als je kunt.)";
 const WHO_PROMPT = "Zijn er personen, organisaties of instanties bij betrokken die je hier wilt noemen?";
 const NAME_PROMPT = "Hoe heet je? (Mag ook anoniem — typ dan 'anoniem'.)";
@@ -52,6 +54,7 @@ export default function Intake() {
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [wantImprovement, setWantImprovement] = useState<boolean | null>(null);
 
   // Collected answers
   const [topicId, setTopicId] = useState<string | null>(null);
@@ -101,6 +104,27 @@ export default function Intake() {
     setStep('story');
   }
 
+  async function handleImproveResponse(yes: boolean) {
+    addUser(yes ? 'Ja' : 'Nee');
+    setWantImprovement(yes);
+    if (yes) {
+      // Ask Groq for follow-up questions
+      setTyping(true);
+      const qs = await fetchFollowups(story);
+      setTyping(false);
+      if (qs.length > 0) {
+        await addBot(qs[0]);
+        setStep('followup1');
+      } else {
+        await addBot(WHEN_PROMPT);
+        setStep('when');
+      }
+    } else {
+      await addBot(WHEN_PROMPT);
+      setStep('when');
+    }
+  }
+
   async function fetchFollowups(currentStory: string) {
     try {
       const r = await ai.improve({
@@ -133,17 +157,19 @@ export default function Intake() {
     if (step === 'story') {
       addUser(text);
       setStory(text);
-      // Ask Groq for follow-up questions
-      setTyping(true);
-      const qs = await fetchFollowups(text);
-      setTyping(false);
-      if (qs.length > 0) {
-        await addBot(qs[0]);
-        setStep('followup1');
-      } else {
-        await addBot(WHEN_PROMPT);
-        setStep('when');
+      // Ask if they want improvements
+      await addBot(ASK_IMPROVE_PROMPT);
+      setStep('ask_improve');
+      return;
+    }
+    if (step === 'ask_improve') {
+      const wants = ['ja', 'yes', 'ja graag', 'yes please', 'graag', 'jep', 'oui'].includes(text.toLowerCase());
+      const declines = ['nee', 'no', 'nope', 'nein', 'skip'].includes(text.toLowerCase());
+      if (!wants && !declines) {
+        toast.error('Antwoord alstublieft met "ja" of "nee"');
+        return;
       }
+      await handleImproveResponse(wants);
       return;
     }
     if (step === 'followup1') {
@@ -278,7 +304,7 @@ export default function Intake() {
     Doorvragen: followups.length > 0,
     'Wanneer/waar': !!whenWhere,
     'Wie/wat': !!whoWhat,
-    Naam: !!name || step !== 'topic' && step !== 'story' && step !== 'followup1' && step !== 'followup2' && step !== 'when' && step !== 'who' && step !== 'name',
+    Naam: !!name || step !== 'topic' && step !== 'story' && step !== 'ask_improve' && step !== 'followup1' && step !== 'followup2' && step !== 'when' && step !== 'who' && step !== 'name',
     Email: !!email || step === 'phone' || step === 'files' || step === 'done',
     Telefoon: !!phone || step === 'files' || step === 'done',
     Bestanden: files.length > 0,
@@ -376,6 +402,26 @@ export default function Intake() {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Improvement question buttons shown only in step 'ask_improve' */}
+          {step === 'ask_improve' && (
+            <div className="border-t border-slate-200 dark:border-slate-800 px-5 py-3 bg-stone-50 dark:bg-slate-950 flex gap-2">
+              <button
+                onClick={() => handleImproveResponse(true)}
+                disabled={typing}
+                className="flex-1 px-4 py-2 text-sm font-medium border border-pointer bg-pointer/10 text-pointer hover:bg-pointer hover:text-pointer-foreground transition disabled:opacity-50"
+              >
+                Ja, help me
+              </button>
+              <button
+                onClick={() => handleImproveResponse(false)}
+                disabled={typing}
+                className="flex-1 px-4 py-2 text-sm font-medium border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
+              >
+                Nee, volgende stap
+              </button>
             </div>
           )}
 
