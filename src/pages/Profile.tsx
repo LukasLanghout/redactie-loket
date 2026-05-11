@@ -53,7 +53,7 @@ export default function Profile() {
   return (
     <div className="space-y-8">
       <section className="card p-6">
-        <h1 className="text-2xl font-bold mb-4">Profiel</h1>
+        <h1 className="font-serif text-3xl md:text-4xl font-bold mb-4">Profiel</h1>
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="label">E-mail</label>

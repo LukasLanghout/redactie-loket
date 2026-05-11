@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, type ReactNode } from 'react';
+import { ArrowRight, Menu, X, Moon, Sun } from 'lucide-react';
 import { useAuth, isStaff } from '../hooks/useAuth';
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -7,6 +8,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === '/';
+  const isIntake = location.pathname === '/intake';
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
   const [open, setOpen] = useState(false);
 
@@ -15,128 +17,91 @@ export function Layout({ children }: { children: ReactNode }) {
     localStorage.setItem('theme', dark ? 'dark' : 'light');
   }, [dark]);
 
-  const linkCls = ({ isActive }: { isActive: boolean }) =>
-    `text-sm font-medium tracking-wide uppercase transition ${
-      isActive ? 'text-brand-600' : 'text-slate-700 dark:text-slate-200 hover:text-brand-600'
+  const navItem = ({ isActive }: { isActive: boolean }) =>
+    `text-sm transition-colors ${
+      isActive ? 'text-pointer font-medium' : 'text-slate-700 dark:text-slate-300 hover:text-pointer'
     }`;
 
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      <header className="border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 bg-white/95 dark:bg-slate-950/95 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between gap-6">
-          <Link to="/" className="flex items-baseline gap-1">
-            <span className="text-3xl font-black tracking-tight">redactie</span>
-            <span className="text-3xl font-black tracking-tight text-brand-500">loket</span>
-            <span className="text-2xl font-black text-brand-500">.</span>
+    <div className={`min-h-screen flex flex-col bg-stone-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 ${isIntake ? '' : ''}`}>
+      <header className="border-b border-slate-200 dark:border-slate-800 bg-stone-50/90 dark:bg-slate-950/90 backdrop-blur sticky top-0 z-20">
+        <div className="mx-auto max-w-7xl flex items-center justify-between px-6 py-4">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center bg-pointer text-pointer-foreground font-serif text-xl font-bold">
+              R
+            </div>
+            <div className="leading-tight">
+              <div className="font-serif text-lg font-bold tracking-tight">Redactieloket</div>
+              <div className="text-[10px] uppercase tracking-widest text-slate-500">Onafhankelijk · Vertrouwelijk</div>
+            </div>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-7">
-            <NavLink to="/feed" className={linkCls}>Onderzoeken</NavLink>
-            <NavLink to="/feed?type=experience" className={linkCls}>Artikelen</NavLink>
-            <NavLink to="/feed?type=tip" className={linkCls}>Tips</NavLink>
-            <a href="#over-ons" className="text-sm font-medium tracking-wide uppercase text-slate-700 dark:text-slate-200 hover:text-brand-600">Over ons</a>
-            {isStaff(profile) && <NavLink to="/dashboard" className={linkCls}>Redactie</NavLink>}
+            <NavLink to="/feed" className={navItem}>Onderzoeken</NavLink>
+            <NavLink to="/feed?type=experience" className={navItem}>Artikelen</NavLink>
+            <NavLink to="/feed?type=tip" className={navItem}>Tips</NavLink>
+            <a href="#over-ons" className="text-sm text-slate-700 dark:text-slate-300 hover:text-pointer transition-colors">Over ons</a>
+            {isStaff(profile) && <NavLink to="/dashboard" className={navItem}>Redactie</NavLink>}
           </nav>
 
           <div className="flex items-center gap-2">
             <Link
-              to="/submit"
-              className="hidden md:inline-flex btn bg-slate-900 text-white hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 px-4 py-2 text-sm font-semibold"
+              to="/intake"
+              className="hidden md:inline-flex items-center gap-2 bg-pointer px-4 py-2 text-sm font-medium text-pointer-foreground transition-opacity hover:opacity-90"
             >
-              Deel je ervaring
-            </Link>
-            <Link
-              to="/feed"
-              className="hidden md:inline-flex btn border-2 border-brand-500 text-brand-600 hover:bg-brand-500 hover:text-white px-4 py-2 text-sm font-semibold"
-            >
-              Naar de webapp →
+              Tip de redactie <ArrowRight className="h-4 w-4" />
             </Link>
             <button
               onClick={() => setDark((d) => !d)}
-              className="btn-ghost px-2"
+              className="p-2 text-slate-600 dark:text-slate-300 hover:text-pointer"
               aria-label="Wissel donker/licht"
-              title="Wissel donker/licht"
             >
-              {dark ? '☀️' : '🌙'}
+              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             {user ? (
               <>
-                <NavLink to="/profile" className="text-sm font-medium px-2 hover:text-brand-600">
-                  {profile?.name ?? user.email}
+                <NavLink to="/profile" className="hidden sm:inline text-sm font-medium px-2 hover:text-pointer">
+                  {profile?.name ?? user.email?.split('@')[0]}
                 </NavLink>
-                <button onClick={async () => { await signOut(); navigate('/'); }} className="btn-ghost text-sm">
+                <button onClick={async () => { await signOut(); navigate('/'); }} className="hidden sm:inline text-sm text-slate-500 hover:text-pointer">
                   Uitloggen
                 </button>
               </>
             ) : (
-              <Link to="/login" className="btn-ghost text-sm">Inloggen</Link>
+              <Link to="/login" className="hidden sm:inline text-sm text-slate-700 dark:text-slate-300 hover:text-pointer">
+                Inloggen
+              </Link>
             )}
             <button
-              className="lg:hidden btn-ghost px-2"
+              className="lg:hidden p-2"
               onClick={() => setOpen((o) => !o)}
               aria-label="Menu"
             >
-              ☰
+              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>
 
         {open && (
-          <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 px-4 py-3 space-y-2">
-            <NavLink to="/feed" className="block py-2" onClick={() => setOpen(false)}>Onderzoeken</NavLink>
-            <NavLink to="/feed?type=experience" className="block py-2" onClick={() => setOpen(false)}>Artikelen</NavLink>
-            <NavLink to="/feed?type=tip" className="block py-2" onClick={() => setOpen(false)}>Tips</NavLink>
-            <a href="#over-ons" className="block py-2" onClick={() => setOpen(false)}>Over ons</a>
-            <Link to="/submit" className="block py-2 font-semibold" onClick={() => setOpen(false)}>Deel je ervaring</Link>
-            <Link to="/feed" className="block py-2 font-semibold text-brand-600" onClick={() => setOpen(false)}>Naar de webapp →</Link>
+          <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 px-6 py-4 space-y-3">
+            <NavLink to="/feed" className="block" onClick={() => setOpen(false)}>Onderzoeken</NavLink>
+            <NavLink to="/feed?type=experience" className="block" onClick={() => setOpen(false)}>Artikelen</NavLink>
+            <NavLink to="/feed?type=tip" className="block" onClick={() => setOpen(false)}>Tips</NavLink>
+            <a href="#over-ons" className="block" onClick={() => setOpen(false)}>Over ons</a>
+            <Link to="/intake" className="block font-medium text-pointer" onClick={() => setOpen(false)}>Tip de redactie →</Link>
+            {!user && <Link to="/login" className="block" onClick={() => setOpen(false)}>Inloggen</Link>}
           </div>
         )}
       </header>
 
       <main className="flex-1">
-        {isHome ? children : <div className="max-w-6xl mx-auto px-4 py-10">{children}</div>}
+        {isHome || isIntake ? children : <div className="max-w-6xl mx-auto px-6 py-10">{children}</div>}
       </main>
 
-      <footer id="over-ons" className="bg-slate-900 text-slate-300 mt-20">
-        <div className="max-w-7xl mx-auto px-4 py-12 grid md:grid-cols-4 gap-8">
-          <div className="md:col-span-2">
-            <div className="text-2xl font-black text-white mb-3">
-              redactie<span className="text-brand-400">loket</span><span className="text-brand-400">.</span>
-            </div>
-            <p className="text-sm leading-relaxed max-w-md">
-              Onafhankelijk community-platform voor tips, vragen en ervaringen. Onze journalistiek begint bij jou.
-            </p>
-            <div className="flex gap-3 mt-5 text-xl">
-              <a href="#" aria-label="Facebook" className="hover:text-white">📘</a>
-              <a href="#" aria-label="Instagram" className="hover:text-white">📸</a>
-              <a href="#" aria-label="LinkedIn" className="hover:text-white">💼</a>
-              <a href="#" aria-label="TikTok" className="hover:text-white">🎵</a>
-              <a href="#" aria-label="Newsletter" className="hover:text-white">✉️</a>
-            </div>
-          </div>
-          <div>
-            <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Doe mee</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link to="/submit" className="hover:text-white">Deel je ervaring</Link></li>
-              <li><Link to="/feed" className="hover:text-white">Community-feed</Link></li>
-              <li><Link to="/register" className="hover:text-white">Account aanmaken</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Info</h4>
-            <ul className="space-y-2 text-sm">
-              <li><a href="#" className="hover:text-white">Voorwaarden</a></li>
-              <li><a href="#" className="hover:text-white">Privacy</a></li>
-              <li><a href="#" className="hover:text-white">Cookies</a></li>
-              <li><a href="#" className="hover:text-white">Vacatures</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="border-t border-slate-800">
-          <div className="max-w-7xl mx-auto px-4 py-4 text-xs text-slate-400 flex flex-wrap justify-between gap-2">
-            <span>© {new Date().getFullYear()} Redactie Loket</span>
-            <span className="italic">Samen komen we verder.</span>
-          </div>
+      <footer id="over-ons" className="border-t border-slate-200 dark:border-slate-800">
+        <div className="mx-auto max-w-7xl flex flex-col items-center justify-between gap-3 px-6 py-8 text-xs text-slate-500 md:flex-row">
+          <div>© {new Date().getFullYear()} Redactieloket · Onafhankelijke journalistiek</div>
+          <div>Onderzoeksjournalistiek · Nederland · Samen komen we verder</div>
         </div>
       </footer>
     </div>

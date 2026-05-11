@@ -44,8 +44,8 @@ export default function Feed() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-3xl font-bold">Community-feed</h1>
-        <p className="text-slate-500">Verhalen die door de redactie zijn goedgekeurd.</p>
+        <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight">Community-feed</h1>
+        <p className="text-slate-500 mt-2">Verhalen die door de redactie zijn goedgekeurd.</p>
       </header>
 
       <div className="card p-4 flex flex-wrap gap-3 items-end">

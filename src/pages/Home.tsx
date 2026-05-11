@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { ArrowRight, ShieldCheck, Eye, Lock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Topic, Submission } from '../lib/types';
 
@@ -10,123 +12,105 @@ export default function Home() {
   });
 
   const { data: recent = [] } = useQuery<Submission[]>({
-    queryKey: ['home-recent-6'],
+    queryKey: ['home-recent-3'],
     queryFn: async () => {
       const { data } = await supabase
         .from('submissions')
         .select('*')
         .in('status', ['approved', 'published'])
         .order('created_at', { ascending: false })
-        .limit(6);
+        .limit(3);
       return (data as Submission[]) ?? [];
     },
   });
 
-  const { data: counts } = useQuery({
-    queryKey: ['home-counts'],
-    queryFn: async () => {
-      const { count: total } = await supabase
-        .from('submissions').select('*', { count: 'exact', head: true });
-      const { count: published } = await supabase
-        .from('submissions').select('*', { count: 'exact', head: true })
-        .in('status', ['approved', 'published']);
-      return { total: total ?? 0, published: published ?? 0 };
-    },
-  });
-
   const topicById = new Map(topics.map((t) => [t.id, t]));
-  const featured = recent[0];
-  const grid = recent.slice(1, 4);
-  const lower = recent.slice(4, 6);
+  const investigations = topics.slice(0, 3);
 
   return (
-    <>
-      {/* HERO */}
+    <div className="min-h-screen bg-stone-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      {/* Hero */}
       <section className="border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 py-20 md:py-28 grid md:grid-cols-12 gap-10 items-center">
-          <div className="md:col-span-7">
-            <div className="text-xs uppercase tracking-[0.2em] text-brand-600 font-semibold mb-4">
-              Onafhankelijk · Community-driven · Sinds 2026
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 md:grid-cols-12 md:py-24">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="md:col-span-7"
+          >
+            <div className="mb-5 inline-flex items-center gap-2 border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs uppercase tracking-widest text-slate-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-pointer" /> Lopend onderzoek
             </div>
-            <h1 className="text-5xl md:text-7xl font-black leading-[1.05] tracking-tight mb-6">
-              Ons onderzoek<br />begint bij <span className="text-brand-500">jou</span>.
+            <h1 className="font-serif text-5xl font-bold leading-[1.05] tracking-tight md:text-7xl">
+              Deel jouw<br />
+              <span className="italic text-pointer">ervaring.</span>
             </h1>
-            <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-xl mb-8 leading-relaxed">
-              Heb jij informatie waar journalisten iets mee kunnen? Een misstand gezien,
-              een vraag die om uitzoekwerk vraagt, of een verhaal dat verteld moet worden?
-              Wij lezen alles wat binnenkomt.
+            <p className="mt-6 max-w-xl text-lg text-slate-600 dark:text-slate-400">
+              Redactieloket onderzoekt misstanden samen met jou. Jouw verhaal kan het volgende onderzoek
+              starten. Praat vertrouwelijk met onze digitale intake-assistent.
             </p>
-            <div className="flex flex-wrap gap-3">
-              <Link to="/submit" className="btn bg-slate-900 text-white hover:bg-black dark:bg-white dark:text-slate-900 px-6 py-3 text-base font-semibold">
-                Deel je ervaring
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link
+                to="/intake"
+                className="group inline-flex items-center gap-3 bg-slate-900 dark:bg-white px-6 py-4 text-base font-medium text-stone-50 dark:text-slate-900 transition-transform hover:-translate-y-0.5"
+              >
+                Start je tip
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Link>
-              <Link to="/feed" className="btn border-2 border-brand-500 text-brand-600 hover:bg-brand-500 hover:text-white px-6 py-3 text-base font-semibold">
-                Naar de webapp →
-              </Link>
-            </div>
-            {counts && (
-              <div className="mt-10 flex gap-10 text-sm">
-                <div>
-                  <div className="text-3xl font-black">{counts.total}</div>
-                  <div className="text-slate-500 uppercase tracking-wide text-xs">tips ontvangen</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-black">{counts.published}</div>
-                  <div className="text-slate-500 uppercase tracking-wide text-xs">verhalen gedeeld</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-black">{topics.length}</div>
-                  <div className="text-slate-500 uppercase tracking-wide text-xs">lopende onderzoeken</div>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="md:col-span-5">
-            <div className="relative">
-              <div className="absolute -top-6 -left-6 w-32 h-32 bg-brand-500 rounded-2xl rotate-6 opacity-20" />
-              <div className="absolute -bottom-6 -right-6 w-40 h-40 bg-accent-500 rounded-2xl -rotate-6 opacity-30" />
-              <div className="relative bg-slate-900 dark:bg-slate-800 text-white rounded-2xl p-8 shadow-2xl">
-                <div className="text-xs uppercase tracking-widest text-brand-300 mb-2">Quote van de week</div>
-                <blockquote className="text-2xl font-semibold leading-snug mb-4">
-                  "Ik dacht: dit moet iemand weten. Een week later belde de redactie me terug."
-                </blockquote>
-                <div className="text-sm text-slate-400">— Anonieme tipgever, over een lopend onderzoek</div>
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <Lock className="h-4 w-4" /> Vertrouwelijk · Bronbescherming
               </div>
             </div>
-          </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.15 }}
+            className="md:col-span-5"
+          >
+            <div className="relative h-full min-h-[320px] overflow-hidden border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900">
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900/95 to-pointer/80" />
+              <div className="relative flex h-full flex-col justify-between p-8 text-stone-50">
+                <div className="text-xs uppercase tracking-widest opacity-70">Uitgelicht onderzoek</div>
+                <div>
+                  <h2 className="font-serif text-3xl leading-tight">
+                    "We hebben honderden meldingen nodig om patronen bloot te leggen."
+                  </h2>
+                  <div className="mt-4 text-sm opacity-80">— Redactie Redactieloket</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* ONZE ONDERZOEKEN */}
+      {/* Lopende onderzoeken */}
       <section className="border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 py-16">
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-brand-600 font-semibold mb-2">
-                Onze onderzoeken
-              </div>
-              <h2 className="text-3xl md:text-4xl font-black">Waar wij ons nu in vastbijten</h2>
-            </div>
-            <Link to="/feed" className="hidden md:inline text-sm font-semibold uppercase tracking-wide text-brand-600 hover:underline">
-              Bekijk alles →
+        <div className="mx-auto max-w-7xl px-6 py-16">
+          <div className="mb-8 flex items-end justify-between">
+            <h2 className="font-serif text-3xl md:text-4xl">Lopende onderzoeken</h2>
+            <Link to="/feed" className="text-sm text-slate-500 hover:text-pointer">
+              Alle onderzoeken →
             </Link>
           </div>
-          {topics.length === 0 ? (
-            <div className="text-slate-500">Nog geen onderwerpen. Run <code>database/seed.sql</code> in Supabase.</div>
+          {investigations.length === 0 ? (
+            <div className="text-slate-500 text-sm">
+              Nog geen onderwerpen. Run <code>database/seed.sql</code> in Supabase.
+            </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {topics.slice(0, 5).map((t) => (
+            <div className="grid gap-px bg-slate-200 dark:bg-slate-800 md:grid-cols-3">
+              {investigations.map((t) => (
                 <Link
                   key={t.id}
                   to={`/feed?topic=${t.id}`}
-                  className="group rounded-2xl p-6 border border-slate-200 dark:border-slate-800 hover:border-brand-500 hover:shadow-lg transition"
-                  style={{ background: (t.color ?? '#00bcd4') + '10' }}
+                  className="group bg-stone-50 dark:bg-slate-950 p-7 transition-colors hover:bg-stone-100 dark:hover:bg-slate-900"
                 >
-                  <div className="text-4xl mb-3">{t.icon}</div>
-                  <div className="font-bold text-lg leading-tight mb-1">{t.name}</div>
-                  <div className="text-xs text-slate-500 line-clamp-2">{t.description}</div>
-                  <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-brand-600 opacity-0 group-hover:opacity-100 transition">
-                    Lees verder →
+                  <div className="text-[10px] uppercase tracking-widest text-pointer">{t.name}</div>
+                  <h3 className="mt-3 font-serif text-2xl leading-tight">{t.icon} {t.name}</h3>
+                  <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">{t.description ?? 'Lopend onderzoek door de redactie.'}</p>
+                  <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium">
+                    Lees meer <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </div>
                 </Link>
               ))}
@@ -135,69 +119,28 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FEATURED ARTICLE */}
-      {featured && (
+      {/* Recente verhalen */}
+      {recent.length > 0 && (
         <section className="border-b border-slate-200 dark:border-slate-800">
-          <div className="max-w-7xl mx-auto px-4 py-16">
-            <Link
-              to={`/submissions/${featured.id}`}
-              className="grid md:grid-cols-2 gap-8 items-center group"
-            >
-              <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center p-12 relative overflow-hidden">
-                <div className="absolute inset-0 opacity-20" style={{
-                  backgroundImage: 'radial-gradient(circle at 20% 30%, white 0%, transparent 40%), radial-gradient(circle at 80% 70%, white 0%, transparent 40%)',
-                }} />
-                <div className="text-6xl md:text-8xl font-black relative">"</div>
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-brand-600 font-semibold mb-3">
-                  Uitgelicht verhaal
-                </div>
-                <h3 className="text-3xl md:text-4xl font-black leading-tight mb-4 group-hover:text-brand-600 transition">
-                  {featured.title}
-                </h3>
-                <p className="text-slate-600 dark:text-slate-300 text-lg line-clamp-3 mb-4">{featured.content}</p>
-                <div className="text-sm text-slate-500">
-                  {new Date(featured.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </div>
-              </div>
-            </Link>
-          </div>
-        </section>
-      )}
-
-      {/* RECENTE ARTIKELEN */}
-      {grid.length > 0 && (
-        <section className="border-b border-slate-200 dark:border-slate-800">
-          <div className="max-w-7xl mx-auto px-4 py-16">
-            <div className="text-xs uppercase tracking-[0.2em] text-brand-600 font-semibold mb-2">
-              Recente artikelen
+          <div className="mx-auto max-w-7xl px-6 py-16">
+            <div className="mb-8 flex items-end justify-between">
+              <h2 className="font-serif text-3xl md:text-4xl">Recente verhalen</h2>
+              <Link to="/feed" className="text-sm text-slate-500 hover:text-pointer">Alle verhalen →</Link>
             </div>
-            <h2 className="text-3xl md:text-4xl font-black mb-8">Wat de community deelt</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              {grid.map((s) => {
+            <div className="grid gap-px bg-slate-200 dark:bg-slate-800 md:grid-cols-3">
+              {recent.map((s) => {
                 const t = s.topic_id ? topicById.get(s.topic_id) : null;
                 return (
                   <Link
                     key={s.id}
                     to={`/submissions/${s.id}`}
-                    className="group rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:shadow-lg transition flex flex-col"
+                    className="group bg-stone-50 dark:bg-slate-950 p-7 transition-colors hover:bg-stone-100 dark:hover:bg-slate-900"
                   >
-                    <div className="aspect-[16/10] flex items-center justify-center text-5xl"
-                         style={{ background: (t?.color ?? '#00bcd4') + '22', color: t?.color ?? '#00bcd4' }}>
-                      {t?.icon ?? '📰'}
-                    </div>
-                    <div className="p-5 flex-1 flex flex-col">
-                      {t && (
-                        <div className="text-xs uppercase tracking-wide font-semibold mb-2" style={{ color: t.color ?? '#00bcd4' }}>
-                          {t.name}
-                        </div>
-                      )}
-                      <h3 className="font-bold text-lg leading-snug mb-2 group-hover:text-brand-600 transition">{s.title}</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-3">{s.content}</p>
-                      <div className="mt-auto text-xs text-slate-500">
-                        {new Date(s.created_at).toLocaleDateString('nl-NL')}
-                      </div>
+                    {t && <div className="text-[10px] uppercase tracking-widest text-pointer">{t.name}</div>}
+                    <h3 className="mt-3 font-serif text-2xl leading-tight">{s.title}</h3>
+                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-400 line-clamp-3">{s.content}</p>
+                    <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium">
+                      Lees verder <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                   </Link>
                 );
@@ -207,46 +150,42 @@ export default function Home() {
         </section>
       )}
 
-      {/* CTA / WEBAPP-SECTIE */}
-      <section className="bg-slate-900 dark:bg-black text-white">
-        <div className="max-w-7xl mx-auto px-4 py-16 md:py-24 grid md:grid-cols-2 gap-10 items-center">
+      {/* Tip CTA banner */}
+      <section className="bg-slate-900 text-stone-50">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 md:grid-cols-2 md:items-center">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-brand-300 font-semibold mb-3">
-              De journalistiek begint bij jou
-            </div>
-            <h2 className="text-3xl md:text-5xl font-black mb-4 leading-tight">
-              Stap in de webapp en zie wat anderen delen.
+            <div className="text-xs uppercase tracking-widest text-pointer">Intake-assistent</div>
+            <h2 className="mt-3 font-serif text-4xl leading-tight md:text-5xl">
+              Heb je iets meegemaakt dat onderzocht moet worden?
             </h2>
-            <p className="text-slate-300 text-lg mb-6 max-w-lg">
-              Lees goedgekeurde verhalen, like wat je raakt, en reageer op tips. Volg lopende onderzoeken
-              en zie precies hoe ver de redactie staat.
+            <p className="mt-5 max-w-lg text-stone-300">
+              Onze AI-assistent helpt je in een paar minuten je verhaal te delen — natuurlijk, in gesprek,
+              zonder formulieren.
             </p>
-            <div className="flex flex-wrap gap-3">
-              <Link to="/feed" className="btn bg-brand-500 text-white hover:bg-brand-600 px-6 py-3 text-base font-semibold">
-                Naar de webapp →
-              </Link>
-              <Link to="/submit" className="btn border-2 border-white text-white hover:bg-white hover:text-slate-900 px-6 py-3 text-base font-semibold">
-                Deel je ervaring
-              </Link>
-            </div>
+            <Link
+              to="/intake"
+              className="mt-8 inline-flex items-center gap-3 bg-pointer px-6 py-4 font-medium text-pointer-foreground transition-opacity hover:opacity-90"
+            >
+              Deel jouw ervaring <ArrowRight className="h-5 w-5" />
+            </Link>
           </div>
-          {lower.length > 0 && (
-            <div className="space-y-3">
-              {lower.map((s) => (
-                <Link
-                  key={s.id}
-                  to={`/submissions/${s.id}`}
-                  className="block bg-slate-800 hover:bg-slate-700 rounded-xl p-5 transition"
-                >
-                  <div className="text-xs uppercase tracking-wide text-brand-300 mb-1 capitalize">{s.type}</div>
-                  <div className="font-semibold text-lg leading-snug mb-1">{s.title}</div>
-                  <div className="text-sm text-slate-400 line-clamp-2">{s.content}</div>
-                </Link>
-              ))}
-            </div>
-          )}
+          <div className="grid gap-4">
+            {[
+              { icon: ShieldCheck, t: 'Bronbescherming', d: 'Wat je deelt blijft binnen onze redactie.' },
+              { icon: Eye, t: 'Onafhankelijk', d: 'Redactieloket is onafhankelijke onderzoeksjournalistiek.' },
+              { icon: Lock, t: 'Veilig', d: 'Vertrouwelijke verwerking volgens journalistieke standaarden.' },
+            ].map(({ icon: Icon, t, d }) => (
+              <div key={t} className="flex gap-4 border border-stone-50/15 p-5">
+                <Icon className="h-6 w-6 shrink-0 text-pointer" />
+                <div>
+                  <div className="font-medium">{t}</div>
+                  <div className="text-sm text-stone-400">{d}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }

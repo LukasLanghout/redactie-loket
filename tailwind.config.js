@@ -5,6 +5,18 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Pointer-inspired accent (warm red, like KRO-NCRV's brand)
+        pointer: {
+          DEFAULT: '#E63946',
+          foreground: '#FFFFFF',
+          50: '#fdecee',
+          100: '#fbd5d9',
+          300: '#f08a92',
+          500: '#E63946',
+          600: '#c92d39',
+          700: '#a8222d',
+        },
+        // Keep brand teal for legacy components (gradually replaced)
         brand: {
           50: '#e0f7fa',
           100: '#b2ebf2',
@@ -22,6 +34,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        serif: ['Fraunces', 'Georgia', 'serif'],
       },
     },
   },

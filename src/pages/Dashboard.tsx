@@ -115,7 +115,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Redactie-dashboard</h1>
+      <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight">Redactie-dashboard</h1>
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -128,7 +128,7 @@ export default function Submit() {
   return (
     <div className="grid md:grid-cols-2 gap-8">
       <aside className="space-y-4">
-        <h1 className="text-3xl font-bold">Deel jouw verhaal</h1>
+        <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight">Deel jouw verhaal</h1>
         <p className="text-slate-600 dark:text-slate-300">
           Iedereen kan tips, vragen en ervaringen insturen. We lezen alles wat binnenkomt. Goedgekeurde
           bijdragen verschijnen in de community-feed en we reageren waar mogelijk.

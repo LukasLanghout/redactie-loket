@@ -63,7 +63,7 @@ export default function SubmissionDetail() {
           <span className="text-slate-400">·</span>
           <span className="text-slate-500">{new Date(s.created_at).toLocaleDateString('nl-NL')}</span>
         </div>
-        <h1 className="text-3xl font-bold">{s.title}</h1>
+        <h1 className="font-serif text-4xl md:text-5xl font-bold tracking-tight leading-tight">{s.title}</h1>
       </header>
 
       <div className="card p-6 whitespace-pre-wrap">{s.content}</div>

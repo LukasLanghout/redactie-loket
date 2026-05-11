@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Submit from './pages/Submit';
+import Intake from './pages/Intake';
 import Feed from './pages/Feed';
 import SubmissionDetail from './pages/SubmissionDetail';
 import Dashboard from './pages/Dashboard';
@@ -39,6 +40,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...`}
         <Route path="/feed" element={<Feed />} />
         <Route path="/submissions/:id" element={<SubmissionDetail />} />
         <Route path="/submit" element={<ProtectedRoute><Submit /></ProtectedRoute>} />
+        <Route path="/intake" element={<Intake />} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute staffOnly><Dashboard /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
