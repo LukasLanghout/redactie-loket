@@ -10,6 +10,7 @@ import Intake from './pages/Intake';
 import Feed from './pages/Feed';
 import SubmissionDetail from './pages/SubmissionDetail';
 import Dashboard from './pages/Dashboard';
+import Redactie from './pages/Redactie';
 import Profile from './pages/Profile';
 
 export default function App() {
@@ -43,6 +44,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...`}
         <Route path="/intake" element={<Intake />} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute staffOnly><Dashboard /></ProtectedRoute>} />
+        <Route path="/redactie" element={<ProtectedRoute staffOnly><Redactie /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

@@ -22,9 +22,13 @@ export type AnalyzeResult = {
   summary: string;
   themes: string[];
   entities: string[];
+  keywords: string[];
   piiTypes: string[];
   hasPii: boolean;
   priority: 'low' | 'medium' | 'high';
+  priorityScore: number;        // 1-5
+  sentiment: 'positief' | 'neutraal' | 'negatief';
+  completenessScore: number;     // 0-10
   reasoning: string;
 };
 

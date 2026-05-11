@@ -1,6 +1,8 @@
 export type Role = 'public' | 'moderator' | 'editor' | 'admin';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'published';
 export type SubmissionType = 'tip' | 'question' | 'experience';
+export type RedactieStatus = 'nieuw' | 'in_behandeling' | 'afgehandeld' | 'gearchiveerd';
+export type Sentiment = 'positief' | 'neutraal' | 'negatief';
 
 export interface Profile {
   id: string;
@@ -38,6 +40,15 @@ export interface Submission {
   view_count: number;
   created_at: string;
   updated_at: string;
+  // VPRO-style editorial workflow fields (added in migration 005)
+  samenvatting?: string | null;
+  trefwoorden?: string[] | null;
+  prioriteit?: number | null;
+  sentiment?: Sentiment | null;
+  compleetheid_score?: number | null;
+  labels?: string[] | null;
+  redactie_status?: RedactieStatus | null;
+  is_spam?: boolean | null;
 }
 
 export interface Reply {

@@ -41,7 +41,8 @@ export function Layout({ children }: { children: ReactNode }) {
             <NavLink to="/feed?type=experience" className={navItem}>Artikelen</NavLink>
             <NavLink to="/feed?type=tip" className={navItem}>Tips</NavLink>
             <a href="#over-ons" className="text-sm text-slate-700 dark:text-slate-300 hover:text-pointer transition-colors">Over ons</a>
-            {isStaff(profile) && <NavLink to="/dashboard" className={navItem}>Redactie</NavLink>}
+            {isStaff(profile) && <NavLink to="/redactie" className={navItem}>Redactie</NavLink>}
+            {isStaff(profile) && <NavLink to="/dashboard" className={navItem}>Moderatie</NavLink>}
           </nav>
 
           <div className="flex items-center gap-2">
