@@ -126,16 +126,33 @@ export async function runGroq(input: AiTaskInput): Promise<AiResult> {
   const system = SYSTEMS[input.task];
   const user = buildUserPrompt(input);
 
-  const res = await groq.chat.completions.create({
-    model: MODEL,
-    response_format: { type: 'json_object' },
-    temperature: 0.3,
-    max_tokens: 800,
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user },
-    ],
-  });
+  let res;
+  try {
+    res = await groq.chat.completions.create({
+      model: MODEL,
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+      max_tokens: 800,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    });
+  } catch (e: any) {
+    // Surface the real Groq error message so the client can see it.
+    const status = e?.status ?? e?.response?.status;
+    const msg = e?.error?.message ?? e?.message ?? String(e);
+    if (status === 401 || status === 403) {
+      throw new Error(`Groq weigert de API key (${status}). Controleer GROQ_API_KEY in .env / Vercel env vars.`);
+    }
+    if (status === 404) {
+      throw new Error(`Groq model "${MODEL}" niet gevonden. Pas GROQ_MODEL aan (bijv. llama-3.3-70b-versatile of llama-3.1-8b-instant).`);
+    }
+    if (status === 429) {
+      throw new Error('Groq rate limit bereikt. Wacht een paar seconden en probeer opnieuw.');
+    }
+    throw new Error(`Groq fout${status ? ` (${status})` : ''}: ${msg}`);
+  }
 
   const content = res.choices[0]?.message?.content;
   if (!content) throw new Error('Lege respons van Groq');

@@ -23,6 +23,9 @@ function groqDevApi(): Plugin {
           res.statusCode = 200;
           res.end(JSON.stringify(result));
         } catch (e: any) {
+          // Log full error to terminal for easier debugging
+          // eslint-disable-next-line no-console
+          console.error('[api/groq] error:', e);
           res.statusCode = 500;
           res.end(JSON.stringify({ error: e?.message ?? String(e) }));
         }

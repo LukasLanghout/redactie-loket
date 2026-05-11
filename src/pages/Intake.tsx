@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowUp, Check, Lock, Paperclip, ShieldCheck, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Check, Paperclip, ShieldCheck, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -39,7 +39,6 @@ const FILES_PROMPT = "Heb je documenten, foto's of opnames als bewijs? Sleep ze 
 
 export default function Intake() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedTopic = searchParams.get('topic');
   const preselectedArticle = searchParams.get('article');
@@ -284,22 +283,22 @@ export default function Intake() {
   }
 
   async function finalize() {
-    if (!user) {
-      toast.error('Je moet ingelogd zijn om te versturen. We bewaren je antwoorden niet.');
-      navigate('/login', { state: { from: '/intake' } });
-      return;
-    }
     setSubmitting(true);
     try {
-      // Upload files (best-effort, skip on bucket missing)
+      // Files: only logged-in users can upload (storage path needs user ID).
+      // Anonymous submitters get a friendly message; the textual tip still arrives.
       const uploaded: string[] = [];
-      for (const f of files) {
-        const path = `${user.id}/${Date.now()}-${f.name}`;
-        const { error: upErr } = await supabase.storage.from('attachments').upload(path, f);
-        if (!upErr) {
-          const { data } = supabase.storage.from('attachments').getPublicUrl(path);
-          uploaded.push(data.publicUrl);
+      if (user) {
+        for (const f of files) {
+          const path = `${user.id}/${Date.now()}-${f.name}`;
+          const { error: upErr } = await supabase.storage.from('attachments').upload(path, f);
+          if (!upErr) {
+            const { data } = supabase.storage.from('attachments').getPublicUrl(path);
+            uploaded.push(data.publicUrl);
+          }
         }
+      } else if (files.length > 0) {
+        toast('Bestanden konden niet worden geüpload zonder account — alleen de tekst is verstuurd.', { icon: 'ℹ️' });
       }
 
       const followupBlock = followups
@@ -315,7 +314,7 @@ export default function Intake() {
       const title = story.split(/[.!?\n]/)[0].slice(0, 80) || (topicName ?? 'Tip via intake-assistent');
 
       const { error } = await supabase.from('submissions').insert({
-        user_id: user.id,
+        user_id: user?.id ?? null,
         topic_id: topicId,
         type: 'tip',
         title,
@@ -323,13 +322,16 @@ export default function Intake() {
         contact_name: name || null,
         contact_email: email || null,
         contact_phone: phone || null,
-        anonymous: !name && !email && !phone,
+        anonymous: !user && !name && !email && !phone,
         file_url: uploaded[0] ?? null,
         status: 'pending',
       });
       if (error) throw error;
       setStep('done');
-      await addBot('Bedankt voor je tip. We hebben alles ontvangen en de redactie kijkt er zo snel mogelijk naar. Je kunt de status volgen op je profielpagina.');
+      const doneMsg = user
+        ? 'Bedankt voor je tip. We hebben alles ontvangen en de redactie kijkt er zo snel mogelijk naar. Je kunt de status volgen op je profielpagina.'
+        : 'Bedankt voor je tip. We hebben alles ontvangen en de redactie kijkt er zo snel mogelijk naar.';
+      await addBot(doneMsg);
       toast.success('Tip verstuurd');
     } catch (e) {
       toast.error((e as Error).message);
@@ -515,9 +517,9 @@ export default function Intake() {
               ))}
             </ul>
             {!user && (
-              <div className="mt-4 p-3 border border-amber-300 bg-amber-50 dark:bg-slate-800 text-xs">
-                <Lock className="h-3 w-3 inline mr-1" />
-                Je moet inloggen om te versturen. <Link to="/login" state={{ from: '/intake' }} className="text-pointer font-semibold">Inloggen →</Link>
+              <div className="mt-4 p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs">
+                <ShieldCheck className="h-3 w-3 inline mr-1" />
+                Je tipt anoniem. Geen account nodig. Bestanden uploaden vereist wel een account.
               </div>
             )}
             {files.length > 0 && (
