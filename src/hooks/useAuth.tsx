@@ -9,7 +9,7 @@ interface AuthCtx {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string, role?: 'public' | 'editor', inviteCode?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -49,11 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
     },
-    signUp: async (email, password, name) => {
+    signUp: async (email, password, name, role = 'public', inviteCode) => {
+      const meta: Record<string, string> = { name };
+      if (role === 'editor') {
+        meta.role = 'editor';
+        if (inviteCode) meta.invite_code = inviteCode;
+      }
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { name } },
+        options: { data: meta },
       });
       if (error) throw error;
     },
