@@ -2,7 +2,7 @@
 
 Community-platform voor tips, vragen en ervaringen (Pointer-stijl), met redactioneel dashboard.
 
-**Stack:** React 18 + Vite + TypeScript · Tailwind CSS · Supabase (Auth + Postgres + Storage, RLS) · TanStack Query · React Router.
+**Stack:** React 18 + Vite + TypeScript · Tailwind CSS · Supabase (Auth + Postgres + Storage, RLS) · TanStack Query · React Router · **Groq** (LLM) via Vercel serverless function + Vite dev-middleware.
 
 ## Features (MVP)
 
@@ -14,6 +14,9 @@ Community-platform voor tips, vragen en ervaringen (Pointer-stijl), met redactio
 - Redactie-dashboard: filters, bulk approve/reject/publiceren/verwijderen, moderatie-notities, basis AI-flagging
 - Light/dark mode
 - Rolgebaseerde toegang (public/moderator/editor/admin) via Postgres RLS
+- **AI-assistent (Groq)**:
+  - In het tipformulier: "Stel onderwerp voor" (categorize) en "Help me deze tip beter maken" (doorvragen + rewrite)
+  - In het redactie-dashboard: "AI-analyse" per submission (samenvatting, thema's, entiteiten, PII-detectie, prioriteit). Resultaten worden toegevoegd aan de moderatie-notities, en `ai_flagged` wordt gezet bij hoge prio of PII.
 
 ## Setup
 
@@ -45,7 +48,13 @@ Vul in `.env`:
 ```
 VITE_SUPABASE_URL=https://xxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
+GROQ_API_KEY=gsk_...
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
+
+> ⚠️ `GROQ_API_KEY` heeft géén `VITE_` prefix met opzet — anders zou Vite hem in de browser-bundle stoppen. De key wordt alleen server-side gebruikt (Vite dev-middleware lokaal, Vercel function in productie).
+
+Een gratis Groq key haal je op https://console.groq.com/keys (geen creditcard nodig).
 
 ### 4. Draaien
 
@@ -69,8 +78,12 @@ Daarna verschijnt het **Dashboard** in de navigatie en kun je onderwerpen + subm
 
 1. Push deze repo naar GitHub.
 2. Importeer 'm in Vercel.
-3. Voeg dezelfde twee env-vars toe in Project Settings → Environment Variables.
-4. Build command: `npm run build` · Output: `dist`.
+3. Voeg deze env-vars toe in Project Settings → Environment Variables:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `GROQ_API_KEY` (zonder VITE_ prefix — server-side)
+   - `GROQ_MODEL` (optioneel; default `llama-3.3-70b-versatile`)
+4. Build command: `npm run build` · Output: `dist`. De `api/` folder wordt automatisch als serverless functions gedeployed.
 
 ## Project structuur
 

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { ai, type AnalyzeResult } from '../lib/ai';
 import type { Submission, SubmissionStatus, SubmissionType, Topic } from '../lib/types';
 
 const FLAG_WORDS = ['spam', 'klootzak', 'kanker', 'idioot'];
@@ -17,6 +18,8 @@ export default function Dashboard() {
   const [type, setType] = useState<SubmissionType | ''>('');
   const [topicId, setTopicId] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [aiBusy, setAiBusy] = useState<string | null>(null);
+  const [aiResults, setAiResults] = useState<Record<string, AnalyzeResult>>({});
 
   const { data: topics = [] } = useQuery<Topic[]>({
     queryKey: ['topics'],
@@ -74,6 +77,31 @@ export default function Dashboard() {
     },
     onError: (e) => toast.error((e as Error).message),
   });
+
+  async function analyze(s: Submission) {
+    setAiBusy(s.id);
+    try {
+      const topicName = s.topic_id ? topicById.get(s.topic_id)?.name ?? null : null;
+      const r = await ai.analyze({ title: s.title, content: s.content, topicName });
+      setAiResults((m) => ({ ...m, [s.id]: r }));
+      const note = [
+        `🤖 AI-analyse (${new Date().toLocaleString('nl-NL')})`,
+        `Samenvatting: ${r.summary}`,
+        `Thema's: ${r.themes.join(', ') || '—'}`,
+        `Entiteiten: ${r.entities.join(', ') || '—'}`,
+        `Prioriteit: ${r.priority}`,
+        r.hasPii ? `⚠ PII: ${r.piiTypes.join(', ')}` : 'Geen PII gedetecteerd',
+        `Reden: ${r.reasoning}`,
+      ].join('\n');
+      const existing = s.moderation_notes ?? '';
+      const newNotes = existing ? `${existing}\n\n${note}` : note;
+      update.mutate({ ids: [s.id], patch: { moderation_notes: newNotes, ai_flagged: r.hasPii || r.priority === 'high' } });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setAiBusy(null);
+    }
+  }
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -183,12 +211,34 @@ export default function Dashboard() {
                       {s.anonymous ? 'Anoniem' : (s.contact_name ?? '—')} ·{' '}
                       {new Date(s.created_at).toLocaleString('nl-NL')}
                     </div>
+                    {aiResults[s.id] && (
+                      <div className="mt-3 card p-3 bg-brand-50 dark:bg-slate-800 border border-brand-200 dark:border-slate-700 text-sm space-y-1">
+                        <div className="text-xs uppercase tracking-wide font-semibold text-brand-700 dark:text-brand-300">
+                          🤖 AI-analyse · prioriteit {aiResults[s.id].priority}
+                        </div>
+                        <div><strong>Samenvatting:</strong> {aiResults[s.id].summary}</div>
+                        {aiResults[s.id].themes.length > 0 && (
+                          <div><strong>Thema's:</strong> {aiResults[s.id].themes.join(', ')}</div>
+                        )}
+                        {aiResults[s.id].entities.length > 0 && (
+                          <div><strong>Entiteiten:</strong> {aiResults[s.id].entities.join(', ')}</div>
+                        )}
+                        {aiResults[s.id].hasPii && (
+                          <div className="text-rose-700 dark:text-rose-400">
+                            ⚠ <strong>PII gedetecteerd:</strong> {aiResults[s.id].piiTypes.join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <details className="mt-2">
                       <summary className="cursor-pointer text-sm text-brand-600">Moderatie-acties</summary>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <button className="btn-primary" onClick={() => update.mutate({ ids: [s.id], patch: { status: 'approved' } })}>Goedkeuren</button>
                         <button className="btn-ghost border" onClick={() => update.mutate({ ids: [s.id], patch: { status: 'rejected' } })}>Afwijzen</button>
                         <button className="btn-ghost border" onClick={() => update.mutate({ ids: [s.id], patch: { status: 'published' } })}>Publiceren</button>
+                        <button className="btn-ghost border" disabled={aiBusy === s.id} onClick={() => analyze(s)}>
+                          {aiBusy === s.id ? '🤖 Analyseert…' : '🤖 AI-analyse'}
+                        </button>
                         <a href={`/submissions/${s.id}`} className="btn-ghost border">Bekijk</a>
                       </div>
                       <textarea
