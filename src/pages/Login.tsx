@@ -1,27 +1,60 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Mail, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 
+// ── Simple fake captcha ───────────────────────────────────────────────────────
+
+function makeCaptcha() {
+  const a = Math.floor(Math.random() * 9) + 1;
+  const b = Math.floor(Math.random() * 9) + 1;
+  return { question: `${a} + ${b}`, answer: String(a + b) };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Mode = 'login' | 'register';
+
 export default function Login() {
-  const [email, setEmail]     = useState('');
-  const [sent, setSent]       = useState(false);
-  const [loading, setLoading] = useState(false);
-  const navigate              = useNavigate();
+  const navigate = useNavigate();
+  const [mode, setMode]           = useState<Mode>('login');
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
+  const [showPw, setShowPw]       = useState(false);
+  const [captchaVal, setCaptchaVal] = useState('');
+  const [loading, setLoading]     = useState(false);
+
+  const captcha = useMemo(() => makeCaptcha(), [mode]); // regenerate on mode switch
+
+  const captchaOk = captchaVal.trim() === captcha.answer;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email) return;
+    if (!captchaOk) { toast.error('Antwoord op de verificatievraag klopt niet.'); return; }
+
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/mijn-tips` },
-    });
+
+    if (mode === 'login') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) { toast.error(error.message); setLoading(false); return; }
+      toast.success('Ingelogd!');
+      navigate('/mijn-tips');
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) { toast.error(error.message); setLoading(false); return; }
+      toast.success('Account aangemaakt — je bent nu ingelogd.');
+      navigate('/mijn-tips');
+    }
+
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
-    setSent(true);
+  }
+
+  function switchMode(m: Mode) {
+    setMode(m);
+    setCaptchaVal('');
+    setPassword('');
   }
 
   return (
@@ -29,59 +62,109 @@ export default function Login() {
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8"
+        transition={{ duration: 0.35 }}
+        className="w-full max-w-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8"
       >
-        {/* Logo */}
-        <div className="mb-8">
-          <div className="font-serif text-2xl font-bold mb-1">Inloggen</div>
-          <p className="text-sm text-slate-500">
-            Je ontvangt een inloglink per e-mail — geen wachtwoord nodig.
-          </p>
+        {/* Mode toggle */}
+        <div className="flex border border-slate-200 dark:border-slate-700 mb-7 text-sm font-medium">
+          {(['login', 'register'] as Mode[]).map(m => (
+            <button
+              key={m}
+              onClick={() => switchMode(m)}
+              className={`flex-1 py-2 transition ${
+                mode === m
+                  ? 'bg-slate-900 dark:bg-stone-50 text-stone-50 dark:text-slate-900'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              {m === 'login' ? 'Inloggen' : 'Account aanmaken'}
+            </button>
+          ))}
         </div>
 
-        {sent ? (
-          <div className="text-center py-6">
-            <Mail className="h-10 w-10 text-pointer mx-auto mb-4" />
-            <div className="font-medium mb-2">Check je inbox</div>
-            <p className="text-sm text-slate-500 mb-6">
-              We hebben een inloglink gestuurd naar <strong>{email}</strong>.
-            </p>
-            <button
-              onClick={() => setSent(false)}
-              className="text-sm text-slate-400 hover:text-pointer"
-            >
-              Ander e-mailadres proberen
-            </button>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium mb-1.5">E-mailadres</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="jouw@email.nl"
+              className="w-full border border-slate-300 dark:border-slate-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:border-pointer"
+            />
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1.5">E-mailadres</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="jouw@email.nl"
-                className="w-full border border-slate-300 dark:border-slate-700 bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:border-pointer"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-pointer text-pointer-foreground py-3 text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? 'Versturen…' : <>Stuur inloglink <ArrowRight className="h-4 w-4" /></>}
-            </button>
-          </form>
-        )}
 
-        {/* Privacy note */}
+          {/* Password */}
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Wachtwoord</label>
+            <div className="relative">
+              <input
+                type={showPw ? 'text' : 'password'}
+                required
+                minLength={6}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Minimaal 6 tekens"
+                className="w-full border border-slate-300 dark:border-slate-700 bg-transparent px-4 py-2.5 pr-10 text-sm focus:outline-none focus:border-pointer"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw(p => !p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-pointer"
+                tabIndex={-1}
+              >
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Fake captcha */}
+          <div>
+            <label className="block text-sm font-medium mb-1.5">
+              Verificatie — wat is {captcha.question}?
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              required
+              value={captchaVal}
+              onChange={e => setCaptchaVal(e.target.value)}
+              placeholder="Antwoord"
+              className={`w-full border bg-transparent px-4 py-2.5 text-sm focus:outline-none transition ${
+                captchaVal && !captchaOk
+                  ? 'border-red-400 focus:border-red-400'
+                  : captchaOk
+                    ? 'border-green-500 focus:border-green-500'
+                    : 'border-slate-300 dark:border-slate-700 focus:border-pointer'
+              }`}
+            />
+            {captchaVal && !captchaOk && (
+              <p className="text-xs text-red-500 mt-1">Dat klopt niet — probeer opnieuw.</p>
+            )}
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading || !captchaOk}
+            className="w-full bg-pointer text-pointer-foreground py-3 text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+          >
+            {loading
+              ? (mode === 'login' ? 'Inloggen…' : 'Aanmaken…')
+              : mode === 'login'
+                ? <><span>Inloggen</span><ArrowRight className="h-4 w-4" /></>
+                : <><span>Account aanmaken</span><ArrowRight className="h-4 w-4" /></>
+            }
+          </button>
+        </form>
+
+        {/* Footer */}
         <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 flex items-start gap-2 text-xs text-slate-400">
           <ShieldCheck className="h-4 w-4 shrink-0 text-pointer mt-0.5" />
           <span>
-            Je account is alleen voor het inzien van je eigen tips.
+            Een account is alleen voor het terugvinden van je eigen tips.
             Tippen kan altijd anoniem.{' '}
             <Link to="/intake" className="hover:text-pointer underline">Tip anoniem →</Link>
           </span>
