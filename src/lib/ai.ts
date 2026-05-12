@@ -1,14 +1,15 @@
-// Client helper for /api/groq.
-// Server-side prompts and Groq SDK live in api/_handler.ts.
+// Client helper for /api/gemini.
+// Server-side prompts and Gemini logic live in api/_handler.ts.
 
 export type AiTopic = { id: string; name: string; description?: string | null };
 
-export type CategorizeResult = {
-  task: 'categorize';
-  topicId: string | null;
-  topicName: string | null;
-  type: 'tip' | 'question' | 'experience';
-  reasoning: string;
+export type IntakeStatus = 'INCOMPLETE' | 'JUNK' | 'VALIDATED';
+
+export type IntakeResult = {
+  task: 'intake';
+  status: IntakeStatus;
+  message: string;   // bot reply to show user
+  rewrite: string;   // filled only on VALIDATED
 };
 
 export type ImproveResult = {
@@ -26,9 +27,9 @@ export type AnalyzeResult = {
   piiTypes: string[];
   hasPii: boolean;
   priority: 'low' | 'medium' | 'high';
-  priorityScore: number;        // 1-5
+  priorityScore: number;
   sentiment: 'positief' | 'neutraal' | 'negatief';
-  completenessScore: number;     // 0-10
+  completenessScore: number;
   reasoning: string;
 };
 
@@ -46,10 +47,14 @@ async function call<T>(body: unknown): Promise<T> {
 }
 
 export const ai = {
-  categorize: (payload: { content: string; title?: string; topics: AiTopic[] }) =>
-    call<CategorizeResult>({ task: 'categorize', payload }),
+  // New: full intake evaluation with STATUS logic (fetches prompt from DB)
+  intake: (payload: { conversation: string; topicName?: string | null }) =>
+    call<IntakeResult>({ task: 'intake', payload }),
+
+  // Legacy: generate follow-up questions + rewrite
   improve: (payload: { title: string; content: string; topicName?: string | null }) =>
     call<ImproveResult>({ task: 'improve', payload }),
+
   analyze: (payload: { title: string; content: string; topicName?: string | null }) =>
     call<AnalyzeResult>({ task: 'analyze', payload }),
 };

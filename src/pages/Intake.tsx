@@ -166,16 +166,16 @@ export default function Intake() {
   const [submitting, setSubmitting] = useState(false);
 
   // Collected data
-  const [topicId, setTopicId]     = useState<string | null>(null);
-  const [story, setStory]         = useState('');
-  const [aiFollowupQ, setAiFollowupQ] = useState('');
-  const [aiFollowupA, setAiFollowupA] = useState('');
-  const [files, setFiles]         = useState<File[]>([]);
+  const [topicId, setTopicId]           = useState<string | null>(null);
+  const [story, setStory]               = useState('');
+  const [validatedRewrite, setValidatedRewrite] = useState('');
+  // Conversation transcript for AI context (tip flow)
+  const conversationLines               = useRef<string[]>([]);
+  const [files, setFiles]               = useState<File[]>([]);
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [shareConsent, setShareConsent] = useState(false);
 
-  const noiseCount  = useRef(0);
   const scrollRef   = useRef<HTMLDivElement>(null);
   const didAutoType = useRef(false);
 
@@ -246,54 +246,28 @@ export default function Intake() {
     if (!text) return;
     setInput('');
 
-    // ── story ────────────────────────────────────────────────────────────────
+    // ── story (first entry) ───────────────────────────────────────────────────
     if (step === 'story') {
-      if (isNoise(text) && noiseCount.current < 2) {
-        noiseCount.current++;
-        addUser(text);
-        await addBot(
-          'Dit lijkt nog niet concreet genoeg. Kun je iets meer vertellen — wat is er precies gebeurd, wanneer, en waar?'
-        );
-        return;
-      }
-      noiseCount.current = 0;
       addUser(text);
       setStory(text);
 
       if (kind === 'tip') {
-        // One AI follow-up question for tips
-        setTyping(true);
-        try {
-          const r = await ai.improve({ title: text.slice(0, 60), content: text, topicName: preselectedTopic });
-          const q = r.questions?.[0];
-          setTyping(false);
-          if (q) {
-            setAiFollowupQ(q);
-            await addBot(q);
-            setStep('ai_followup');
-            return;
-          }
-        } catch {
-          setTyping(false);
-        }
-        await addBot('Heb je documenten, foto\'s of opnames als bewijs? Voeg ze toe via 📎, of typ "nee".');
-        setStep('files');
+        conversationLines.current = [`Tipgever: ${text}`];
+        await runIntakeAI();
       } else if (kind === 'vraag' || kind === 'opmerking') {
         await submitAndClose(text, false);
       } else {
-        // ervaring / feedback → consent question
         await addBot(KIND_CONFIG[kind].consentQuestion);
         setStep('consent_ask');
       }
       return;
     }
 
-    // ── ai_followup ──────────────────────────────────────────────────────────
+    // ── ai_followup (dynamic loop driven by AI STATUS) ────────────────────────
     if (step === 'ai_followup') {
       addUser(text);
-      setAiFollowupA(text);
-      await addBot('Heb je documenten, foto\'s of opnames als bewijs? Voeg ze toe via 📎, of typ "nee".');
-      setStep('files');
+      conversationLines.current.push(`Tipgever: ${text}`);
+      await runIntakeAI();
       return;
     }
 
@@ -315,6 +289,43 @@ export default function Intake() {
       else setContactPhone(text);
       await submitAndClose(story, true);
       return;
+    }
+  }
+
+  // ── AI intake evaluation loop ─────────────────────────────────────────────
+  // Calls the intake task which uses the dynamic system prompt from Supabase.
+  // Loops until STATUS = VALIDATED or JUNK.
+
+  async function runIntakeAI() {
+    setTyping(true);
+    try {
+      const conversation = conversationLines.current.join('\n');
+      const r = await ai.intake({ conversation, topicName: preselectedTopic });
+      setTyping(false);
+
+      if (r.status === 'JUNK') {
+        await addBot(r.message);
+        // Stay on current step so user can try again or give up
+        return;
+      }
+
+      if (r.status === 'VALIDATED') {
+        if (r.rewrite) setValidatedRewrite(r.rewrite);
+        await addBot(r.message || 'Bedankt, we hebben genoeg informatie. Nog een laatste vraag:');
+        await addBot('Heb je documenten, foto\'s of opnames als bewijs? Voeg ze toe via 📎, of klik op "Geen bijlage".');
+        setStep('files');
+        return;
+      }
+
+      // INCOMPLETE: show AI message (which is a follow-up question), keep looping
+      conversationLines.current.push(`Redactie AI: ${r.message}`);
+      await addBot(r.message);
+      setStep('ai_followup');
+    } catch {
+      setTyping(false);
+      // If AI fails, fall through to files step gracefully
+      await addBot('Heb je documenten, foto\'s of opnames als bewijs? Voeg ze toe via 📎, of klik op "Geen bijlage".');
+      setStep('files');
     }
   }
 
@@ -350,9 +361,10 @@ export default function Intake() {
   async function submitAndClose(mainStory: string, withContact: boolean) {
     setSubmitting(true);
     try {
+      const transcript = conversationLines.current.join('\n');
       const content = [
-        mainStory,
-        aiFollowupQ && aiFollowupA ? `\n\n**Doorvraag:** ${aiFollowupQ}\n**Antwoord:** ${aiFollowupA}` : '',
+        validatedRewrite || mainStory,
+        transcript ? `\n\n---\n**Gesprekstranscript:**\n${transcript}` : '',
       ].join('');
 
       const title = mainStory.split(/[.!?\n]/)[0].slice(0, 80) || (preselectedTopic ?? 'Bijdrage via Redactieloket');
