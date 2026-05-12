@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import Intake from './pages/Intake';
 import Artikelen from './pages/Artikelen';
 import ArtikelDetail from './pages/ArtikelDetail';
+import Redactie from './pages/Redactie';
 import Tips from './pages/Tips';
 import Login from './pages/Login';
 import MijnTips from './pages/MijnTips';
@@ -39,6 +40,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...`}
         <Route path="/programmas" element={<Programmas />} />
         <Route path="/login" element={<Login />} />
         <Route path="/mijn-tips" element={<MijnTips />} />
+        <Route path="/redactie" element={<Redactie />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
