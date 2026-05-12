@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 
 const NAV = [
   { to: '/artikelen', label: 'Artikelen' },
+  { to: '/programmas', label: "Programma's" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
