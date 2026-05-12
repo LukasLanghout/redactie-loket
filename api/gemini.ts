@@ -1,11 +1,10 @@
-// Single-file Gemini handler — no cross-file imports to avoid ERR_MODULE_NOT_FOUND
-// with "type":"module" in package.json on Vercel Node.js runtime.
+// AI handler — uses Groq (OpenAI-compatible REST API, no SDK needed).
+// Set GROQ_API_KEY in Vercel env vars and local .env.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
-const GEMINI_URL = (key: string) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
+const GROQ_MODEL   = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
+const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
 
 // ── Fetch editable system prompt from Supabase ────────────────────────────────
 
@@ -28,11 +27,11 @@ async function fetchIntakePrompt(): Promise<string> {
   }
 }
 
-// ── System prompts ────────────────────────────────────────────────────────────
+// ── Static system prompts ─────────────────────────────────────────────────────
 
 const STATIC_SYSTEMS: Record<string, string> = {
-  improve:  'Je bent een journalist die doorvraagt om tips bruikbaarder te maken. Antwoord ALTIJD als geldig JSON.',
-  analyze:  'Je bent een redactie-assistent. Analyseer de tip bondig. Antwoord ALTIJD als geldig JSON.',
+  improve:    'Je bent een journalist die doorvraagt om tips bruikbaarder te maken. Antwoord ALTIJD als geldig JSON.',
+  analyze:    'Je bent een redactie-assistent. Analyseer de tip bondig. Antwoord ALTIJD als geldig JSON.',
   categorize: 'Je bent een redactionele assistent die tips classificeert. Antwoord ALTIJD als geldig JSON.',
 };
 
@@ -52,7 +51,7 @@ ${payload.conversation}
 """
 
 Geef ALLEEN JSON:
-{"status":"INCOMPLETE","message":"<jouw reactie aan de tipgever>","rewrite":""}
+{"status":"INCOMPLETE","message":"<jouw reactie>","rewrite":""}
 
 Regels:
 - status is exact "INCOMPLETE", "JUNK" of "VALIDATED"
@@ -96,74 +95,69 @@ function stripFences(s: string) {
   return (m ? m[1] : s).trim();
 }
 
-// ── Main handler ─────────────────────────────────────────────────────────────
+// ── Groq call ─────────────────────────────────────────────────────────────────
+
+async function callGroq(system: string, userPrompt: string): Promise<any> {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('GROQ_API_KEY ontbreekt in omgevingsvariabelen.');
+
+  const res = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user',   content: userPrompt },
+      ],
+      temperature: 0.3,
+      max_tokens: 1200,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text().catch(() => res.statusText);
+    if (res.status === 401) throw new Error(`Groq API key ongeldig (401): ${err}`);
+    if (res.status === 429) throw new Error('Groq rate limit bereikt — wacht even en probeer opnieuw.');
+    throw new Error(`Groq fout ${res.status}: ${err}`);
+  }
+
+  const json = await res.json() as any;
+  const text: string = json?.choices?.[0]?.message?.content ?? '';
+  if (!text) throw new Error('Lege respons van Groq.');
+
+  try { return JSON.parse(stripFences(text)); }
+  catch { throw new Error('Groq gaf geen geldige JSON: ' + text.slice(0, 200)); }
+}
+
+// ── Main handler ──────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method Not Allowed' });
-    return;
-  }
-
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) {
-    res.status(500).json({ error: 'GEMINI_API_KEY ontbreekt in omgevingsvariabelen.' });
-    return;
+    res.status(405).json({ error: 'Method Not Allowed' }); return;
   }
 
   let body: any;
   try {
     body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
   } catch {
-    res.status(400).json({ error: 'Ongeldige JSON body.' });
-    return;
+    res.status(400).json({ error: 'Ongeldige JSON body.' }); return;
   }
 
   if (!body?.task) {
-    res.status(400).json({ error: 'Missing "task" field.' });
-    return;
+    res.status(400).json({ error: 'Missing "task" field.' }); return;
   }
 
   try {
-    // Get system prompt
     const system = body.task === 'intake'
       ? await fetchIntakePrompt()
       : STATIC_SYSTEMS[body.task] ?? 'Antwoord als geldig JSON.';
 
-    const prompt = buildPrompt(body);
-
-    const geminiBody = {
-      system_instruction: { parts: [{ text: system }] },
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 1200,
-        responseMimeType: 'application/json',
-      },
-    };
-
-    const geminiRes = await fetch(GEMINI_URL(geminiKey), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(geminiBody),
-    });
-
-    if (!geminiRes.ok) {
-      const err = await geminiRes.text().catch(() => geminiRes.statusText);
-      if (geminiRes.status === 401 || geminiRes.status === 403)
-        throw new Error(`Gemini API key ongeldig (${geminiRes.status})`);
-      if (geminiRes.status === 429)
-        throw new Error('Gemini rate limit bereikt — wacht even en probeer opnieuw.');
-      throw new Error(`Gemini fout ${geminiRes.status}: ${err}`);
-    }
-
-    const geminiJson = await geminiRes.json() as any;
-    const text: string = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    if (!text) throw new Error('Lege respons van Gemini.');
-
-    let parsed: any;
-    try { parsed = JSON.parse(stripFences(text)); }
-    catch { throw new Error('Gemini gaf geen geldige JSON: ' + text.slice(0, 200)); }
-
+    const parsed = await callGroq(system, buildPrompt(body));
     res.status(200).json({ task: body.task, ...parsed });
   } catch (e: any) {
     res.status(500).json({ error: e?.message ?? String(e) });

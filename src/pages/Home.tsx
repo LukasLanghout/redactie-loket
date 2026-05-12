@@ -46,7 +46,7 @@ export default function Home() {
   useEffect(() => {
     fetch('/api/health')
       .then(r => r.json())
-      .then(d => setAiStatus(d.gemini ? 'online' : 'offline'))
+      .then(d => setAiStatus(d.groq ? 'online' : 'offline'))
       .catch(() => setAiStatus('offline'));
   }, []);
 

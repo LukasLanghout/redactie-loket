@@ -1,28 +1,29 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GROQ_API_KEY;
   if (!key) {
-    res.status(200).json({ gemini: false, reason: 'GEMINI_API_KEY niet ingesteld' });
+    res.status(200).json({ groq: false, reason: 'GROQ_API_KEY niet ingesteld' });
     return;
   }
 
-  // Minimal ping to Gemini — tiny prompt, no output needed
+  // Minimal ping to Groq — tiny prompt, no real output needed
   try {
-    const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: 'Ping. Antwoord alleen: ok' }] }],
-          generationConfig: { maxOutputTokens: 5 },
-        }),
-      }
-    );
-    res.status(200).json({ gemini: r.ok, status: r.status });
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: 'Ping. Antwoord alleen: ok' }],
+        max_tokens: 5,
+        temperature: 0,
+      }),
+    });
+    res.status(200).json({ groq: r.ok, status: r.status });
   } catch (e: any) {
-    res.status(200).json({ gemini: false, reason: e?.message });
+    res.status(200).json({ groq: false, reason: e?.message });
   }
 }
