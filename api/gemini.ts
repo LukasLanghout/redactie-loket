@@ -33,6 +33,7 @@ const STATIC_SYSTEMS: Record<string, string> = {
   improve:    'Je bent een journalist die doorvraagt om tips bruikbaarder te maken. Antwoord ALTIJD als geldig JSON.',
   analyze:    'Je bent een redactie-assistent. Analyseer de tip bondig. Antwoord ALTIJD als geldig JSON.',
   categorize: 'Je bent een redactionele assistent die tips classificeert. Antwoord ALTIJD als geldig JSON.',
+  title:      'Je bent een redacteur die een korte journalistieke koptitel bedenkt. Antwoord ALTIJD als geldig JSON.',
 };
 
 // ── Prompt builders ───────────────────────────────────────────────────────────
@@ -73,6 +74,13 @@ Onderwerp: ${payload.topicName ?? '(onbekend)'}
 Titel: ${payload.title}
 Inhoud: ${payload.content}
 Geef ALLEEN JSON: {"summary":"<max 3 zinnen>","themes":[],"entities":[],"keywords":[],"piiTypes":[],"hasPii":false,"priority":"low","priorityScore":3,"sentiment":"neutraal","completenessScore":5,"reasoning":"<1-2 zinnen>"}`;
+  }
+
+  if (task === 'title') {
+    return `Bedenk een korte, krachtige journalistieke titel (max 8 woorden, Nederlands) voor deze tip.
+Onderwerp: ${payload.topicName ?? '(onbekend)'}
+Inhoud: ${payload.content}
+Geef ALLEEN JSON: {"title":"<jouw titel>"}`;
   }
 
   if (task === 'categorize') {

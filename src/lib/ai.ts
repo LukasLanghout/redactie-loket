@@ -18,6 +18,11 @@ export type ImproveResult = {
   rewrite: string;
 };
 
+export type TitleResult = {
+  task: 'title';
+  title: string;
+};
+
 export type AnalyzeResult = {
   task: 'analyze';
   summary: string;
@@ -57,4 +62,7 @@ export const ai = {
 
   analyze: (payload: { title: string; content: string; topicName?: string | null }) =>
     call<AnalyzeResult>({ task: 'analyze', payload }),
+
+  title: (payload: { content: string; topicName?: string | null }) =>
+    call<TitleResult>({ task: 'title', payload }),
 };

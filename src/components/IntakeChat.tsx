@@ -337,8 +337,15 @@ export default function IntakeChat({
         transcript ? `\n\n---\n**Gesprekstranscript:**\n${transcript}` : '',
       ].join('');
 
-      const title = mainStory.split(/[.!?\n]/)[0].slice(0, 80)
+      // Generate a proper journalistic title via AI; fall back to first sentence
+      let title = mainStory.split(/[.!?\n]/)[0].slice(0, 80)
         || (preselectedTopic ?? 'Bijdrage via Redactieloket');
+      try {
+        const t = await ai.title({ content: mainStory, topicName: preselectedTopic });
+        if (t.title) title = t.title;
+      } catch {
+        // keep fallback title
+      }
 
       const { error } = await supabase.from('submissions').insert({
         user_id: user?.id ?? null,
