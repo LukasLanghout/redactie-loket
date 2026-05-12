@@ -345,45 +345,47 @@ function DetailPanel({
             {sub.content}
           </div>
 
-          {(sub.contact_email || sub.contact_phone) && (
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-1.5 gap-2">
-                <div className="text-xs text-slate-400">
-                  Reactie gaat naar {sub.contact_email ?? sub.contact_phone}
-                </div>
+          {/* Reply box — always visible */}
+          <div className="mt-3">
+            <div className="flex items-center justify-between mb-1.5 gap-2">
+              <div className="text-xs text-slate-400">
+                {sub.contact_email || sub.contact_phone
+                  ? `Reactie gaat naar ${sub.contact_email ?? sub.contact_phone}`
+                  : <span className="italic">Anonieme inzending — geen contactgegevens</span>
+                }
+              </div>
+              <button
+                onClick={suggestReply}
+                disabled={suggestingReply}
+                className="flex items-center gap-1.5 text-xs border border-pointer text-pointer px-2.5 py-1 hover:bg-pointer hover:text-pointer-foreground transition disabled:opacity-40 shrink-0"
+              >
+                {suggestingReply
+                  ? <><span className="h-3 w-3 border-2 border-pointer border-t-transparent rounded-full animate-spin" /> Moment…</>
+                  : <><Wand2 className="h-3 w-3" /> AI-voorstel</>
+                }
+              </button>
+            </div>
+            <div className="border border-slate-200 dark:border-slate-700 focus-within:border-pointer transition">
+              <textarea
+                rows={3}
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                placeholder="Schrijf een reactie of notitie…"
+                className="w-full bg-transparent text-sm px-3 py-2.5 resize-none focus:outline-none"
+                onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendReply(); }}
+              />
+              <div className="border-t border-slate-100 dark:border-slate-800 px-3 py-2 flex items-center justify-between">
+                <span className="text-xs text-slate-400 hidden sm:block">Ctrl+Enter om op te slaan</span>
                 <button
-                  onClick={suggestReply}
-                  disabled={suggestingReply}
-                  className="flex items-center gap-1.5 text-xs border border-pointer text-pointer px-2.5 py-1 hover:bg-pointer hover:text-pointer-foreground transition disabled:opacity-40 shrink-0"
+                  onClick={sendReply}
+                  disabled={!replyText.trim() || sending}
+                  className="flex items-center gap-1.5 bg-pointer text-pointer-foreground text-xs px-3 py-1.5 font-medium hover:opacity-90 disabled:opacity-40 transition ml-auto"
                 >
-                  {suggestingReply
-                    ? <><span className="h-3 w-3 border-2 border-pointer border-t-transparent rounded-full animate-spin" /> Moment…</>
-                    : <><Wand2 className="h-3 w-3" /> AI-voorstel</>
-                  }
+                  <Send className="h-3 w-3" /> {sending ? 'Opslaan…' : 'Opslaan →'}
                 </button>
               </div>
-              <div className="border border-slate-200 dark:border-slate-700 focus-within:border-pointer transition">
-                <textarea
-                  rows={3}
-                  value={replyText}
-                  onChange={e => setReplyText(e.target.value)}
-                  placeholder="Schrijf een reactie naar de kijker…"
-                  className="w-full bg-transparent text-sm px-3 py-2.5 resize-none focus:outline-none"
-                  onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendReply(); }}
-                />
-                <div className="border-t border-slate-100 dark:border-slate-800 px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs text-slate-400 hidden sm:block">Ctrl+Enter om te versturen</span>
-                  <button
-                    onClick={sendReply}
-                    disabled={!replyText.trim() || sending}
-                    className="flex items-center gap-1.5 bg-pointer text-pointer-foreground text-xs px-3 py-1.5 font-medium hover:opacity-90 disabled:opacity-40 transition ml-auto"
-                  >
-                    <Send className="h-3 w-3" /> {sending ? 'Versturen…' : 'Stuur →'}
-                  </button>
-                </div>
-              </div>
             </div>
-          )}
+          </div>
         </section>
 
         {/* Status */}
