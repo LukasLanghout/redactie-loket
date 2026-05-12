@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowRight, ShieldCheck, Eye, Lock, MessageSquare } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import type { Topic, Submission } from '../lib/types';
+import { ArrowRight, ShieldCheck, Eye, Lock, MessageSquare, Pencil } from 'lucide-react';
 
 // Featured articles — each linked to a topic in the database.
 // Tipping on an article pre-fills the topic in the intake form via URL params.
@@ -41,29 +38,24 @@ const FEATURED_ARTICLES = [
 ] as const;
 
 export default function Home() {
-  const { data: topics = [] } = useQuery<Topic[]>({
-    queryKey: ['topics'],
-    queryFn: async () => (await supabase.from('topics').select('*').order('name')).data ?? [],
-  });
-
-  const { data: recent = [] } = useQuery<Submission[]>({
-    queryKey: ['home-recent-3'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('submissions')
-        .select('*')
-        .in('status', ['approved', 'published'])
-        .order('created_at', { ascending: false })
-        .limit(3);
-      return (data as Submission[]) ?? [];
-    },
-  });
-
-  const topicById = new Map(topics.map((t) => [t.id, t]));
-  const investigations = topics.slice(0, 3);
-
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      {/* Floating Action Button */}
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 1, type: 'spring', stiffness: 260, damping: 20 }}
+        className="fixed bottom-6 right-6 z-50"
+      >
+        <Link
+          to="/intake"
+          className="group flex items-center gap-2 bg-pointer text-pointer-foreground shadow-lg px-5 py-3.5 font-medium text-sm hover:opacity-90 transition-all hover:shadow-xl hover:-translate-y-0.5"
+          aria-label="Tip de redactie"
+        >
+          <Pencil className="h-4 w-4" />
+          <span>Tip de redactie</span>
+        </Link>
+      </motion.div>
       {/* Hero */}
       <section className="border-b border-slate-200 dark:border-slate-800">
         <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 md:grid-cols-12 md:py-24">
@@ -120,53 +112,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Lopende onderzoeken */}
-      <section className="border-b border-slate-200 dark:border-slate-800">
-        <div className="mx-auto max-w-7xl px-6 py-16">
-          <div className="mb-8 flex items-end justify-between">
-            <h2 className="font-serif text-3xl md:text-4xl">Lopende onderzoeken</h2>
-            <Link to="/feed" className="text-sm text-slate-500 hover:text-pointer">
-              Alle onderzoeken →
-            </Link>
-          </div>
-          {investigations.length === 0 ? (
-            <div className="text-slate-500 text-sm">
-              Nog geen onderwerpen. Run <code>database/seed.sql</code> in Supabase.
-            </div>
-          ) : (
-            <div className="grid gap-px bg-slate-200 dark:bg-slate-800 md:grid-cols-3">
-              {investigations.map((t) => (
-                <Link
-                  key={t.id}
-                  to={`/feed?topic=${t.id}`}
-                  className="group bg-stone-50 dark:bg-slate-950 p-7 transition-colors hover:bg-stone-100 dark:hover:bg-slate-900"
-                >
-                  <div className="text-[10px] uppercase tracking-widest text-pointer">{t.name}</div>
-                  <h3 className="mt-3 font-serif text-2xl leading-tight">{t.icon} {t.name}</h3>
-                  <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">{t.description ?? 'Lopend onderzoek door de redactie.'}</p>
-                  <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium">
-                    Lees meer <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* Featured artikelen met directe tip-CTA */}
       <section className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="mx-auto max-w-7xl px-6 py-16">
-          <div className="mb-8 flex items-end justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-widest text-pointer mb-2">
-                Uitgelichte artikelen
-              </div>
-              <h2 className="font-serif text-3xl md:text-4xl">Waar werkt de redactie aan?</h2>
-              <p className="mt-2 text-sm text-slate-500 max-w-2xl">
-                Herken je iets in deze verhalen? Stuur direct een tip — het onderwerp is dan al ingevuld.
-              </p>
+          <div className="mb-8">
+            <div className="text-xs uppercase tracking-widest text-pointer mb-2">
+              Uitgelichte artikelen
             </div>
+            <h2 className="font-serif text-3xl md:text-4xl">Waar werkt de redactie aan?</h2>
+            <p className="mt-2 text-sm text-slate-500 max-w-2xl">
+              Herken je iets in deze verhalen? Stuur direct een tip — het onderwerp is dan al ingevuld.
+            </p>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
             {FEATURED_ARTICLES.map((a) => (
@@ -212,37 +168,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Recente verhalen */}
-      {recent.length > 0 && (
-        <section className="border-b border-slate-200 dark:border-slate-800">
-          <div className="mx-auto max-w-7xl px-6 py-16">
-            <div className="mb-8 flex items-end justify-between">
-              <h2 className="font-serif text-3xl md:text-4xl">Recente verhalen</h2>
-              <Link to="/feed" className="text-sm text-slate-500 hover:text-pointer">Alle verhalen →</Link>
-            </div>
-            <div className="grid gap-px bg-slate-200 dark:bg-slate-800 md:grid-cols-3">
-              {recent.map((s) => {
-                const t = s.topic_id ? topicById.get(s.topic_id) : null;
-                return (
-                  <Link
-                    key={s.id}
-                    to={`/submissions/${s.id}`}
-                    className="group bg-stone-50 dark:bg-slate-950 p-7 transition-colors hover:bg-stone-100 dark:hover:bg-slate-900"
-                  >
-                    {t && <div className="text-[10px] uppercase tracking-widest text-pointer">{t.name}</div>}
-                    <h3 className="mt-3 font-serif text-2xl leading-tight">{s.title}</h3>
-                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-400 line-clamp-3">{s.content}</p>
-                    <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium">
-                      Lees verder <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Tip CTA banner */}
       <section className="bg-slate-900 text-stone-50">
