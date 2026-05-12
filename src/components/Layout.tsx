@@ -1,12 +1,14 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowRight, Moon, Sun, Menu, X } from 'lucide-react';
+import { ArrowRight, Moon, Sun, Menu, X, UserCircle } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 const NAV = [
   { to: '/artikelen', label: 'Artikelen' },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const location = useLocation();
   const isHome = location.pathname === '/';
   const isIntake = location.pathname === '/intake';
@@ -63,6 +65,21 @@ export function Layout({ children }: { children: ReactNode }) {
             >
               Tip de redactie <ArrowRight className="h-4 w-4" />
             </Link>
+            {user ? (
+              <Link
+                to="/mijn-tips"
+                className="hidden md:inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 hover:text-pointer transition-colors"
+              >
+                <UserCircle className="h-4 w-4" /> Mijn tips
+              </Link>
+            ) : (
+              <Link
+                to="/login"
+                className="hidden md:inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 hover:text-pointer transition-colors"
+              >
+                Inloggen
+              </Link>
+            )}
             <button
               onClick={() => setDark((d) => !d)}
               className="p-2 text-slate-600 dark:text-slate-300 hover:text-pointer"

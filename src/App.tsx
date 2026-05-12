@@ -5,6 +5,8 @@ import Home from './pages/Home';
 import Intake from './pages/Intake';
 import Artikelen from './pages/Artikelen';
 import Tips from './pages/Tips';
+import Login from './pages/Login';
+import MijnTips from './pages/MijnTips';
 
 export default function App() {
   if (!isSupabaseConfigured) {
@@ -31,6 +33,8 @@ VITE_SUPABASE_ANON_KEY=eyJ...`}
         <Route path="/intake" element={<Intake />} />
         <Route path="/artikelen" element={<Artikelen />} />
         <Route path="/tips" element={<Tips />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/mijn-tips" element={<MijnTips />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

@@ -4,11 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowUp, Check, Paperclip, ShieldCheck, X,
-  Lightbulb, Heart, MessageSquare, HelpCircle, Star,
+  Lightbulb, Heart, MessageSquare, HelpCircle, Star, UserCircle, EyeOff,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { ai } from '../lib/ai';
+import { useAuth } from '../hooks/useAuth';
 import type { Topic } from '../lib/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -139,10 +140,14 @@ function isNoise(text: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Intake() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const preselectedTopic   = searchParams.get('topic');
   const preselectedArticle = searchParams.get('article');
   const fromArticle = !!preselectedTopic;
+
+  // Login popup: show when not logged in, hide after user chooses
+  const [showLoginPopup, setShowLoginPopup] = useState(!user);
 
   const { data: topics = [] } = useQuery<Topic[]>({
     queryKey: ['topics'],
@@ -353,7 +358,7 @@ export default function Intake() {
       const title = mainStory.split(/[.!?\n]/)[0].slice(0, 80) || (preselectedTopic ?? 'Bijdrage via Redactieloket');
 
       const { error } = await supabase.from('submissions').insert({
-        user_id: null,
+        user_id: user?.id ?? null,
         topic_id: topicId,
         type: kind,
         title,
@@ -397,6 +402,52 @@ export default function Intake() {
 
   return (
     <div className="min-h-[calc(100vh-5rem)] bg-stone-50 dark:bg-slate-950">
+
+      {/* ── Login popup ─────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showLoginPopup && !user && (
+          <motion.div
+            key="login-popup"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-7 shadow-2xl"
+            >
+              <div className="font-serif text-xl font-bold mb-1">Log in voor een persoonlijk overzicht</div>
+              <p className="text-sm text-slate-500 mb-6">
+                Inloggen is niet verplicht. Als je ingelogd bent kun je jouw ingezonden tips altijd terugvinden — met AI-samenvatting.
+              </p>
+              <div className="space-y-3">
+                <Link
+                  to="/login"
+                  className="flex items-center gap-3 w-full border border-slate-900 dark:border-stone-50 px-5 py-3 text-sm font-medium hover:bg-slate-900 hover:text-stone-50 dark:hover:bg-stone-50 dark:hover:text-slate-900 transition"
+                >
+                  <UserCircle className="h-5 w-5" />
+                  Inloggen of account aanmaken
+                </Link>
+                <button
+                  onClick={() => setShowLoginPopup(false)}
+                  className="flex items-center gap-3 w-full border border-slate-200 dark:border-slate-700 px-5 py-3 text-sm font-medium text-slate-500 hover:border-slate-400 transition"
+                >
+                  <EyeOff className="h-5 w-5" />
+                  Blijf anoniem — gewoon tippen
+                </button>
+              </div>
+              <p className="mt-4 text-xs text-slate-400 text-center">
+                Je tip wordt altijd vertrouwelijk behandeld.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="mx-auto max-w-5xl grid lg:grid-cols-[1fr_260px] gap-5 px-4 py-6">
 
         {/* ── Chat ─────────────────────────────────────────────────────────── */}
