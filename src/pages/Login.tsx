@@ -38,14 +38,38 @@ export default function Login() {
 
     if (mode === 'login') {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) { toast.error(error.message); setLoading(false); return; }
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          toast.error('E-mailadres of wachtwoord klopt niet.');
+        } else {
+          toast.error(error.message);
+        }
+        setLoading(false);
+        return;
+      }
       toast.success('Ingelogd!');
       navigate('/mijn-tips');
     } else {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) { toast.error(error.message); setLoading(false); return; }
-      toast.success('Account aangemaakt — je bent nu ingelogd.');
-      navigate('/mijn-tips');
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        if (error.status === 422) {
+          // Email confirmations required — try signing in directly instead
+          toast.error('Controleer je inbox voor een bevestigingsmail, of log in als je al een account hebt.');
+        } else {
+          toast.error(error.message);
+        }
+        setLoading(false);
+        return;
+      }
+      // If session is immediately available, email confirmation is disabled (good)
+      if (data.session) {
+        toast.success('Account aangemaakt — welkom!');
+        navigate('/mijn-tips');
+      } else {
+        // Email confirmation required
+        toast('Controleer je inbox en klik op de bevestigingslink.', { icon: '📧', duration: 6000 });
+        setMode('login');
+      }
     }
 
     setLoading(false);
