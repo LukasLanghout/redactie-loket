@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, ShieldCheck, Eye, Lock, MessageSquare, Pencil } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Eye, Lock, MessageSquare, Pencil, Wifi, WifiOff, Loader } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+type AiStatus = 'checking' | 'online' | 'offline';
 
 // Featured articles — each linked to a topic in the database.
 // Tipping on an article pre-fills the topic in the intake form via URL params.
@@ -38,6 +41,15 @@ const FEATURED_ARTICLES = [
 ] as const;
 
 export default function Home() {
+  const [aiStatus, setAiStatus] = useState<AiStatus>('checking');
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(d => setAiStatus(d.gemini ? 'online' : 'offline'))
+      .catch(() => setAiStatus('offline'));
+  }, []);
+
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       {/* Floating Action Button */}
@@ -205,6 +217,24 @@ export default function Home() {
           </div>
         </div>
       </section>
+      {/* AI Status bar */}
+      <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="mx-auto max-w-7xl px-6 py-3 flex items-center gap-2 text-xs text-slate-500">
+          {aiStatus === 'checking' && (
+            <><Loader className="h-3.5 w-3.5 animate-spin" /> AI-assistent verbinden…</>
+          )}
+          {aiStatus === 'online' && (
+            <><span className="h-2 w-2 rounded-full bg-green-500 inline-block" />
+            <Wifi className="h-3.5 w-3.5 text-green-500" />
+            <span>AI-assistent <strong className="text-green-600 dark:text-green-400">online</strong> — intake-assistent actief</span></>
+          )}
+          {aiStatus === 'offline' && (
+            <><span className="h-2 w-2 rounded-full bg-red-500 inline-block animate-pulse" />
+            <WifiOff className="h-3.5 w-3.5 text-red-500" />
+            <span>AI-assistent <strong className="text-red-600 dark:text-red-400">niet beschikbaar</strong> — tippen is nog wel mogelijk</span></>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

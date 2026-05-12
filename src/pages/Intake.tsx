@@ -321,11 +321,13 @@ export default function Intake() {
       conversationLines.current.push(`Redactie AI: ${r.message}`);
       await addBot(r.message);
       setStep('ai_followup');
-    } catch {
+    } catch (e: any) {
       setTyping(false);
-      // If AI fails, fall through to files step gracefully
-      await addBot('Heb je documenten, foto\'s of opnames als bewijs? Voeg ze toe via 📎, of klik op "Geen bijlage".');
-      setStep('files');
+      // Show error in chat — don't silently skip the AI evaluation
+      await addBot(
+        'De AI-assistent is tijdelijk niet beschikbaar. Probeer het opnieuw, of typ je verhaal opnieuw met meer details (wat, wie, wanneer, waar).'
+      );
+      // Stay on current step so user can retry — don't advance to files
     }
   }
 
