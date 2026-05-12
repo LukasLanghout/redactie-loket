@@ -4,7 +4,6 @@ import { ArrowRight, Moon, Sun, Menu, X } from 'lucide-react';
 
 const NAV = [
   { to: '/artikelen', label: 'Artikelen' },
-  { to: '/tips', label: 'Tips' },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
