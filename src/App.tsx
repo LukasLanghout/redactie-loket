@@ -1,17 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { ProtectedRoute } from './components/ProtectedRoute';
 import { isSupabaseConfigured } from './lib/supabase';
 import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Submit from './pages/Submit';
 import Intake from './pages/Intake';
-import Feed from './pages/Feed';
-import SubmissionDetail from './pages/SubmissionDetail';
-import Dashboard from './pages/Dashboard';
-import Redactie from './pages/Redactie';
-import Profile from './pages/Profile';
+import Artikelen from './pages/Artikelen';
+import Tips from './pages/Tips';
 
 export default function App() {
   if (!isSupabaseConfigured) {
@@ -21,7 +14,6 @@ export default function App() {
           <h1 className="text-2xl font-bold mb-3">Setup vereist</h1>
           <p className="mb-4 text-slate-600 dark:text-slate-300">
             Kopieer <code>.env.example</code> naar <code>.env</code> en vul je Supabase URL en anon key in.
-            Zie <code>README.md</code> voor de volledige stappen.
           </p>
           <pre className="bg-slate-100 dark:bg-slate-900 p-3 rounded text-xs overflow-x-auto">
 {`VITE_SUPABASE_URL=https://xxx.supabase.co
@@ -36,15 +28,9 @@ VITE_SUPABASE_ANON_KEY=eyJ...`}
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/feed" element={<Feed />} />
-        <Route path="/submissions/:id" element={<SubmissionDetail />} />
-        <Route path="/submit" element={<ProtectedRoute><Submit /></ProtectedRoute>} />
         <Route path="/intake" element={<Intake />} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute staffOnly><Dashboard /></ProtectedRoute>} />
-        <Route path="/redactie" element={<ProtectedRoute staffOnly><Redactie /></ProtectedRoute>} />
+        <Route path="/artikelen" element={<Artikelen />} />
+        <Route path="/tips" element={<Tips />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
