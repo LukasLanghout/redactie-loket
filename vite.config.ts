@@ -1,11 +1,11 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
-function groqDevApi(): Plugin {
+function geminiDevApi(): Plugin {
   return {
-    name: 'groq-dev-api',
+    name: 'gemini-dev-api',
     configureServer(server) {
-      server.middlewares.use('/api/groq', async (req, res) => {
+      server.middlewares.use('/api/gemini', async (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
           res.end('Method Not Allowed');
@@ -35,6 +35,6 @@ function groqDevApi(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), groqDevApi()],
+  plugins: [react(), geminiDevApi()],
   server: { port: 5173 },
 });

@@ -33,7 +33,7 @@ export type AnalyzeResult = {
 };
 
 async function call<T>(body: unknown): Promise<T> {
-  const r = await fetch('/api/groq', {
+  const r = await fetch('/api/gemini', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
