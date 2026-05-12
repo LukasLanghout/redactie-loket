@@ -3,15 +3,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, ChevronDown, Sparkles, Send, Tag, X,
-  Clock, Mail, Phone, FileText, MessageSquare, Plus,
+  Mail, Phone, FileText, MessageSquare, Plus, ArrowLeft,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { ai } from '../lib/ai';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface Topic { id: string; name: string; icon: string | null }
 
 interface Submission {
   id: string;
@@ -37,14 +35,8 @@ interface Reply {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const THEMES = [
-  'Alle thema\'s',
-  'Gezondheid en zorg',
-  'Werk en geld',
-  'Recht en onrecht',
-  'Wonen en leefomgeving',
-  'Onderwijs en jeugd',
-  'Klimaat en duurzaamheid',
-  'Misinformatie en privacy',
+  "Alle thema's", 'Gezondheid en zorg', 'Werk en geld', 'Recht en onrecht',
+  'Wonen en leefomgeving', 'Onderwijs en jeugd', 'Klimaat en duurzaamheid', 'Misinformatie en privacy',
 ];
 
 const TYPE_FILTERS = ['Alle', 'Tips', 'Ervaringen', 'Vragen', 'Feedback', 'Opmerkingen'];
@@ -59,11 +51,11 @@ const STATUS_MAP: Record<string, string> = {
   Afgerond: 'published', Gearchiveerd: 'archived',
 };
 
-const STATUSES: { key: string; label: string }[] = [
-  { key: 'pending',  label: 'Nieuw' },
-  { key: 'reviewed', label: 'In behandeling' },
-  { key: 'published',label: 'Afgerond' },
-  { key: 'archived', label: 'Gearchiveerd' },
+const STATUSES = [
+  { key: 'pending',   label: 'Nieuw' },
+  { key: 'reviewed',  label: 'In behandeling' },
+  { key: 'published', label: 'Afgerond' },
+  { key: 'archived',  label: 'Gearchiveerd' },
 ];
 
 const TYPE_NL: Record<string, string> = {
@@ -71,20 +63,14 @@ const TYPE_NL: Record<string, string> = {
   vraag: 'Vraag', opmerking: 'Opmerking', question: 'Vraag', experience: 'Ervaring',
 };
 
-const PRIORITY_COLOR: Record<string, string> = {
-  pending:  'bg-red-500',
-  reviewed: 'bg-amber-400',
-  published:'bg-green-500',
-  archived: 'bg-slate-400',
-  rejected: 'bg-slate-400',
+const DOT_COLOR: Record<string, string> = {
+  pending: 'bg-red-500', reviewed: 'bg-amber-400',
+  published: 'bg-green-500', archived: 'bg-slate-400', rejected: 'bg-slate-400',
 };
 
-const SORT_OPTIONS = ['Nieuwste', 'Oudste'];
-
 function timeAgo(iso: string) {
-  const d = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  const days = Math.floor(diff / 86_400_000);
+  const d   = new Date(iso);
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
   if (days === 0) return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
   if (days < 7)  return `${days}d geleden`;
   return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
@@ -97,34 +83,85 @@ function fullDate(iso: string) {
   });
 }
 
+// ── Shared filter bar components ──────────────────────────────────────────────
+
+function PillBar({ options, active, onChange }: {
+  options: string[]; active: string; onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+      {options.map(o => (
+        <button
+          key={o}
+          onClick={() => onChange(o)}
+          className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition whitespace-nowrap ${
+            active === o
+              ? 'bg-slate-900 dark:bg-stone-50 text-stone-50 dark:text-slate-900'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TabBar({ options, active, counts, onChange }: {
+  options: string[]; active: string;
+  counts?: Record<string, number>;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex gap-0.5 overflow-x-auto no-scrollbar">
+      {options.map(o => (
+        <button
+          key={o}
+          onClick={() => onChange(o)}
+          className={`shrink-0 px-3 py-2 text-xs font-medium transition whitespace-nowrap ${
+            active === o
+              ? 'bg-pointer text-pointer-foreground'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          {o}
+          {counts && counts[o] !== undefined && counts[o] > 0 && (
+            <span className="ml-1 opacity-60">{counts[o]}</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── Detail panel ──────────────────────────────────────────────────────────────
 
-function DetailPanel({ sub, onUpdate }: {
+function DetailPanel({
+  sub, onUpdate, onBack,
+}: {
   sub: Submission;
   onUpdate: (patch: Partial<Submission>) => void;
+  onBack?: () => void;        // mobile back button
 }) {
   const qc = useQueryClient();
-  const [summary, setSummary]     = useState<any>(null);
-  const [loadingAi, setLoadingAi] = useState(false);
-  const [replyText, setReplyText] = useState('');
-  const [sending, setSending]     = useState(false);
+  const [summary, setSummary]       = useState<any>(null);
+  const [loadingAi, setLoadingAi]   = useState(false);
+  const [replyText, setReplyText]   = useState('');
+  const [sending, setSending]       = useState(false);
   const [labelInput, setLabelInput] = useState('');
-  const [showLabelInput, setShowLabelInput] = useState(false);
+  const [showLabel, setShowLabel]   = useState(false);
   const labelRef = useRef<HTMLInputElement>(null);
 
   const { data: replies = [], refetch: refetchReplies } = useQuery<Reply[]>({
     queryKey: ['replies', sub.id],
     queryFn: async () => {
       const { data } = await supabase
-        .from('redactie_replies')
-        .select('*')
-        .eq('submission_id', sub.id)
-        .order('created_at');
+        .from('redactie_replies').select('*')
+        .eq('submission_id', sub.id).order('created_at');
       return data ?? [];
     },
   });
 
-  // Auto-load AI summary
   useEffect(() => {
     setSummary(null);
     setLoadingAi(true);
@@ -144,10 +181,8 @@ function DetailPanel({ sub, onUpdate }: {
   async function sendReply() {
     if (!replyText.trim()) return;
     setSending(true);
-    const { error } = await supabase.from('redactie_replies').insert({
-      submission_id: sub.id,
-      content: replyText.trim(),
-    });
+    const { error } = await supabase.from('redactie_replies')
+      .insert({ submission_id: sub.id, content: replyText.trim() });
     if (error) { toast.error('Reactie versturen mislukt'); setSending(false); return; }
     setReplyText('');
     setSending(false);
@@ -163,8 +198,7 @@ function DetailPanel({ sub, onUpdate }: {
     if (error) { toast.error('Label toevoegen mislukt'); return; }
     onUpdate({ labels: newLabels });
     qc.invalidateQueries({ queryKey: ['redactie-submissions'] });
-    setLabelInput('');
-    setShowLabelInput(false);
+    setLabelInput(''); setShowLabel(false);
   }
 
   async function removeLabel(label: string) {
@@ -178,39 +212,45 @@ function DetailPanel({ sub, onUpdate }: {
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-white dark:bg-slate-900">
 
-      {/* Title bar */}
-      <div className="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+      {/* Mobile back button + title */}
+      <div className="px-4 md:px-6 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-pointer mb-3 transition"
+          >
+            <ArrowLeft className="h-4 w-4" /> Terug naar lijst
+          </button>
+        )}
+
         <div className="flex items-start justify-between gap-3 mb-2">
-          <h2 className="font-serif text-xl font-bold leading-tight flex-1">{sub.title}</h2>
-          <div className="flex items-center gap-2 shrink-0">
+          <h2 className="font-serif text-lg md:text-xl font-bold leading-tight flex-1">{sub.title}</h2>
+          <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
             <span className="text-xs border border-pointer text-pointer px-2 py-0.5">
               {TYPE_NL[sub.type] ?? sub.type}
             </span>
             {summary && (
               <span className={`text-xs border px-2 py-0.5 ${
-                summary.sentiment === 'positief'
-                  ? 'border-green-400 text-green-600'
-                  : summary.sentiment === 'negatief'
-                  ? 'border-red-400 text-red-600'
-                  : 'border-slate-300 text-slate-500'
+                summary.sentiment === 'positief' ? 'border-green-400 text-green-600'
+                : summary.sentiment === 'negatief' ? 'border-red-400 text-red-600'
+                : 'border-slate-300 text-slate-500'
               }`}>
                 {summary.sentiment}
               </span>
             )}
           </div>
         </div>
+
         <div className="text-xs text-slate-400">{fullDate(sub.created_at)}</div>
 
-        {/* Priority bar */}
         {summary && (
           <div className="mt-3 flex items-center gap-2">
             <span className="text-xs text-slate-400">Prioriteit</span>
             <div className="flex gap-0.5">
               {[1,2,3,4,5].map(i => (
-                <div
-                  key={i}
-                  className={`h-2 w-5 rounded-sm ${i <= summary.priorityScore ? 'bg-red-500' : 'bg-slate-200 dark:bg-slate-700'}`}
-                />
+                <div key={i} className={`h-2 w-5 rounded-sm ${
+                  i <= summary.priorityScore ? 'bg-red-500' : 'bg-slate-200 dark:bg-slate-700'
+                }`} />
               ))}
             </div>
             <span className="text-xs text-slate-400">{summary.priorityScore}/5</span>
@@ -218,7 +258,7 @@ function DetailPanel({ sub, onUpdate }: {
         )}
       </div>
 
-      <div className="flex-1 px-6 py-5 space-y-6">
+      <div className="flex-1 px-4 md:px-6 py-4 space-y-6">
 
         {/* AI Summary */}
         <section>
@@ -227,21 +267,17 @@ function DetailPanel({ sub, onUpdate }: {
           </div>
           {loadingAi ? (
             <div className="space-y-2">
-              <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
-              <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-pulse w-4/5" />
-              <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-pulse w-3/5" />
+              {[1, 0.8, 0.6].map((w, i) => (
+                <div key={i} className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" style={{ width: `${w * 100}%` }} />
+              ))}
             </div>
           ) : summary ? (
             <div className="space-y-3">
-              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                {summary.summary}
-              </p>
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{summary.summary}</p>
               {summary.themes?.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {summary.themes.map((t: string) => (
-                    <span key={t} className="text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">
-                      {t}
-                    </span>
+                    <span key={t} className="text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">{t}</span>
                   ))}
                 </div>
               )}
@@ -260,7 +296,7 @@ function DetailPanel({ sub, onUpdate }: {
             <div className="space-y-1.5">
               {sub.contact_email && (
                 <a href={`mailto:${sub.contact_email}`}
-                  className="flex items-center gap-2 text-sm text-pointer hover:underline">
+                  className="flex items-center gap-2 text-sm text-pointer hover:underline break-all">
                   <Mail className="h-3.5 w-3.5 shrink-0" /> {sub.contact_email}
                 </a>
               )}
@@ -274,17 +310,16 @@ function DetailPanel({ sub, onUpdate }: {
           </section>
         )}
 
-        {/* Conversation / full content */}
+        {/* Conversation */}
         <section>
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">
             <MessageSquare className="h-3.5 w-3.5" /> Gesprek
           </div>
 
-          {/* Existing replies */}
           {replies.length > 0 && (
             <div className="space-y-2 mb-3">
               {replies.map(r => (
-                <div key={r.id} className="bg-pointer/5 border border-pointer/20 px-4 py-3 text-sm">
+                <div key={r.id} className="bg-pointer/5 border border-pointer/20 px-3 py-2.5 text-sm">
                   <div className="text-xs text-slate-400 mb-1">Redactie · {timeAgo(r.created_at)}</div>
                   <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{r.content}</p>
                 </div>
@@ -292,16 +327,14 @@ function DetailPanel({ sub, onUpdate }: {
             </div>
           )}
 
-          {/* Original content */}
-          <div className="border border-slate-100 dark:border-slate-800 px-4 py-3 text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
+          <div className="border border-slate-100 dark:border-slate-800 px-3 py-2.5 text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed rounded-sm">
             {sub.content}
           </div>
 
-          {/* Reply box */}
           {(sub.contact_email || sub.contact_phone) && (
             <div className="mt-3">
               <div className="text-xs text-slate-400 mb-1.5">
-                Reactie gaan naar {sub.contact_email ?? sub.contact_phone}
+                Reactie gaat naar {sub.contact_email ?? sub.contact_phone}
               </div>
               <div className="border border-slate-200 dark:border-slate-700 focus-within:border-pointer transition">
                 <textarea
@@ -313,11 +346,11 @@ function DetailPanel({ sub, onUpdate }: {
                   onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendReply(); }}
                 />
                 <div className="border-t border-slate-100 dark:border-slate-800 px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Ctrl+Enter om te versturen</span>
+                  <span className="text-xs text-slate-400 hidden sm:block">Ctrl+Enter om te versturen</span>
                   <button
                     onClick={sendReply}
                     disabled={!replyText.trim() || sending}
-                    className="flex items-center gap-1.5 bg-pointer text-pointer-foreground text-xs px-3 py-1.5 font-medium hover:opacity-90 disabled:opacity-40 transition"
+                    className="flex items-center gap-1.5 bg-pointer text-pointer-foreground text-xs px-3 py-1.5 font-medium hover:opacity-90 disabled:opacity-40 transition ml-auto"
                   >
                     <Send className="h-3 w-3" /> {sending ? 'Versturen…' : 'Stuur →'}
                   </button>
@@ -350,7 +383,7 @@ function DetailPanel({ sub, onUpdate }: {
         </section>
 
         {/* Labels */}
-        <section>
+        <section className="pb-6">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">
             <Tag className="h-3.5 w-3.5" /> Labels
           </div>
@@ -363,8 +396,7 @@ function DetailPanel({ sub, onUpdate }: {
                 </button>
               </span>
             ))}
-
-            {showLabelInput ? (
+            {showLabel ? (
               <input
                 ref={labelRef}
                 autoFocus
@@ -372,15 +404,15 @@ function DetailPanel({ sub, onUpdate }: {
                 onChange={e => setLabelInput(e.target.value)}
                 onKeyDown={e => {
                   if (e.key === 'Enter') addLabel(labelInput);
-                  if (e.key === 'Escape') { setShowLabelInput(false); setLabelInput(''); }
+                  if (e.key === 'Escape') { setShowLabel(false); setLabelInput(''); }
                 }}
-                onBlur={() => { if (labelInput.trim()) addLabel(labelInput); else setShowLabelInput(false); }}
+                onBlur={() => { if (labelInput.trim()) addLabel(labelInput); else setShowLabel(false); }}
                 placeholder="Nieuw label…"
                 className="text-xs border border-pointer px-2 py-0.5 focus:outline-none w-28 bg-transparent"
               />
             ) : (
               <button
-                onClick={() => setShowLabelInput(true)}
+                onClick={() => setShowLabel(true)}
                 className="flex items-center gap-1 text-xs text-slate-400 hover:text-pointer border border-dashed border-slate-300 dark:border-slate-600 px-2 py-0.5 transition"
               >
                 <Plus className="h-3 w-3" /> Label toevoegen
@@ -398,18 +430,16 @@ function DetailPanel({ sub, onUpdate }: {
 export default function Redactie() {
   const qc = useQueryClient();
 
-  const [theme, setTheme]         = useState('Alle thema\'s');
+  const [theme, setTheme]               = useState("Alle thema's");
   const [typeFilter, setTypeFilter]     = useState('Alle');
   const [statusFilter, setStatusFilter] = useState('Alle');
-  const [search, setSearch]       = useState('');
-  const [sort, setSort]           = useState('Nieuwste');
-  const [selected, setSelected]   = useState<Submission | null>(null);
-  const [showSort, setShowSort]   = useState(false);
+  const [search, setSearch]             = useState('');
+  const [sort, setSort]                 = useState('Nieuwste');
+  const [selected, setSelected]         = useState<Submission | null>(null);
+  const [showSort, setShowSort]         = useState(false);
 
-  const { data: topics = [] } = useQuery<Topic[]>({
-    queryKey: ['topics'],
-    queryFn: async () => (await supabase.from('topics').select('*').order('name')).data ?? [],
-  });
+  // On mobile: when a submission is selected we show the detail view full-screen
+  const showDetail = !!selected;
 
   const { data: subs = [], isLoading } = useQuery<Submission[]>({
     queryKey: ['redactie-submissions'],
@@ -424,18 +454,12 @@ export default function Redactie() {
     refetchInterval: 30_000,
   });
 
-  // Filter + search
   const filtered = subs.filter(s => {
-    if (typeFilter !== 'Alle') {
-      const mapped = TYPE_MAP[typeFilter];
-      if (s.type !== mapped) return false;
-    }
-    if (statusFilter !== 'Alle') {
-      const mapped = STATUS_MAP[statusFilter];
-      if (s.status !== mapped) return false;
-    }
-    if (theme !== 'Alle thema\'s') {
-      if (!s.topics?.name.toLowerCase().includes(theme.toLowerCase().split(' ')[0].toLowerCase())) return false;
+    if (typeFilter !== 'Alle' && s.type !== TYPE_MAP[typeFilter]) return false;
+    if (statusFilter !== 'Alle' && s.status !== STATUS_MAP[statusFilter]) return false;
+    if (theme !== "Alle thema's") {
+      const keyword = theme.toLowerCase().split(' ')[0];
+      if (!s.topics?.name.toLowerCase().includes(keyword)) return false;
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -450,8 +474,7 @@ export default function Redactie() {
       : new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
-  // Counts for badges
-  const counts = {
+  const counts: Record<string, number> = {
     Alle: subs.length,
     Tips: subs.filter(s => s.type === 'tip').length,
     Ervaringen: subs.filter(s => s.type === 'ervaring').length,
@@ -469,189 +492,195 @@ export default function Redactie() {
     );
   }
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-stone-50 dark:bg-slate-950 overflow-hidden">
+  // ── Shared filter header (used by both mobile + desktop) ────────────────
 
-      {/* ── Theme bar ─────────────────────────────────────────────────────── */}
-      <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4">
-        <div className="flex items-center gap-2 overflow-x-auto py-3 no-scrollbar">
-          {THEMES.map(t => (
-            <button
-              key={t}
-              onClick={() => setTheme(t)}
-              className={`shrink-0 px-3 py-1 text-xs font-medium rounded-full transition whitespace-nowrap ${
-                theme === t
-                  ? 'bg-slate-900 dark:bg-stone-50 text-stone-50 dark:text-slate-900'
-                  : 'text-slate-500 hover:text-pointer'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+  const FilterHeader = (
+    <>
+      {/* Theme pills */}
+      <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5">
+        <PillBar options={THEMES} active={theme} onChange={setTheme} />
       </div>
 
-      {/* ── Main split ────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Type tabs */}
+      <div className="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5">
+        <TabBar options={TYPE_FILTERS} active={typeFilter} counts={counts} onChange={setTypeFilter} />
+      </div>
 
-        {/* Left: list */}
-        <div className="w-[380px] shrink-0 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900">
+      {/* Status tabs */}
+      <div className="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5">
+        <TabBar options={STATUS_FILTERS} active={statusFilter} onChange={setStatusFilter} />
+      </div>
 
-          {/* Type filter */}
-          <div className="border-b border-slate-100 dark:border-slate-800 px-3 py-2 flex gap-1 overflow-x-auto no-scrollbar">
-            {TYPE_FILTERS.map(f => (
-              <button
-                key={f}
-                onClick={() => setTypeFilter(f)}
-                className={`shrink-0 px-2.5 py-1 text-xs rounded transition ${
-                  typeFilter === f
-                    ? 'bg-pointer text-pointer-foreground'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
+      {/* Search + sort */}
+      <div className="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 flex gap-2 items-center">
+        <div className="flex-1 flex items-center gap-2 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5">
+          <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Zoek op naam of inhoud…"
+            className="flex-1 text-xs bg-transparent focus:outline-none placeholder:text-slate-400 min-w-0"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="text-slate-400 hover:text-pointer shrink-0">
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setShowSort(s => !s)}
+            className="flex items-center gap-1 text-xs border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-slate-500 hover:border-pointer hover:text-pointer transition"
+          >
+            {sort} <ChevronDown className="h-3 w-3" />
+          </button>
+          <AnimatePresence>
+            {showSort && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg z-10 w-28"
               >
-                {f}
-                {counts[f as keyof typeof counts] !== undefined && counts[f as keyof typeof counts] > 0 && (
-                  <span className="ml-1 opacity-60">{counts[f as keyof typeof counts]}</span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Status filter */}
-          <div className="border-b border-slate-100 dark:border-slate-800 px-3 py-2 flex gap-1 overflow-x-auto no-scrollbar">
-            {STATUS_FILTERS.map(f => (
-              <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
-                className={`shrink-0 px-2.5 py-1 text-xs rounded transition ${
-                  statusFilter === f
-                    ? 'bg-pointer text-pointer-foreground'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-
-          {/* Search + sort */}
-          <div className="border-b border-slate-100 dark:border-slate-800 px-3 py-2 flex gap-2 items-center">
-            <div className="flex-1 flex items-center gap-2 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5">
-              <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Zoek op naam of inhoud…"
-                className="flex-1 text-xs bg-transparent focus:outline-none placeholder:text-slate-400"
-              />
-              {search && (
-                <button onClick={() => setSearch('')} className="text-slate-400 hover:text-pointer">
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-            <div className="relative">
-              <button
-                onClick={() => setShowSort(s => !s)}
-                className="flex items-center gap-1 text-xs border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-slate-500 hover:border-pointer hover:text-pointer transition"
-              >
-                {sort} <ChevronDown className="h-3 w-3" />
-              </button>
-              <AnimatePresence>
-                {showSort && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg z-10 w-28"
+                {['Nieuwste', 'Oudste'].map(o => (
+                  <button
+                    key={o}
+                    onClick={() => { setSort(o); setShowSort(false); }}
+                    className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition ${
+                      sort === o ? 'text-pointer font-medium' : 'text-slate-600 dark:text-slate-300'
+                    }`}
                   >
-                    {SORT_OPTIONS.map(o => (
-                      <button
-                        key={o}
-                        onClick={() => { setSort(o); setShowSort(false); }}
-                        className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition ${
-                          sort === o ? 'text-pointer font-medium' : 'text-slate-600 dark:text-slate-300'
-                        }`}
-                      >
-                        {o}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
+                    {o}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </>
+  );
 
-          {/* List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
-            {isLoading && (
-              <div className="space-y-0 divide-y divide-slate-100 dark:divide-slate-800">
-                {[1,2,3,4,5].map(i => (
-                  <div key={i} className="p-4 animate-pulse">
-                    <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded w-1/4 mb-2" />
-                    <div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded w-3/4 mb-1.5" />
-                    <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded w-full" />
-                  </div>
+  // ── Submission list ─────────────────────────────────────────────────────
+
+  const SubmissionList = (
+    <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+      {isLoading && Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="p-4 animate-pulse">
+          <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded w-1/4 mb-2" />
+          <div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded w-3/4 mb-1.5" />
+          <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded w-full" />
+        </div>
+      ))}
+
+      {!isLoading && sorted.length === 0 && (
+        <div className="text-center py-16 text-slate-400 text-sm">Geen inzendingen gevonden</div>
+      )}
+
+      {!isLoading && sorted.map(s => (
+        <button
+          key={s.id}
+          onClick={() => setSelected(s)}
+          className={`w-full text-left px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition ${
+            selected?.id === s.id ? 'bg-pointer/5 border-l-2 border-pointer' : ''
+          }`}
+        >
+          <div className="flex items-start gap-2.5">
+            <div className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${DOT_COLOR[s.status] ?? 'bg-slate-400'}`} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 mb-0.5">
+                <span className="text-xs text-slate-500 truncate">
+                  {s.anonymous ? 'Anoniem' : (s.contact_email ?? 'Anoniem')}
+                </span>
+                <span className="text-xs text-slate-400 shrink-0">{timeAgo(s.created_at)}</span>
+              </div>
+              {s.topics && (
+                <div className="text-[11px] text-pointer mb-0.5 truncate">
+                  {s.topics.name}{s.topics.icon ? ` ${s.topics.icon}` : ''}
+                </div>
+              )}
+              <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-2 leading-snug">
+                {s.content.slice(0, 120)}…
+              </p>
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                <span className="text-[10px] border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 text-slate-500">
+                  {TYPE_NL[s.type] ?? s.type}
+                </span>
+                {(s.labels ?? []).slice(0, 2).map(l => (
+                  <span key={l} className="text-[10px] border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 text-slate-400">
+                    {l}
+                  </span>
                 ))}
               </div>
-            )}
-
-            {!isLoading && sorted.length === 0 && (
-              <div className="text-center py-16 text-slate-400 text-sm">
-                Geen inzendingen gevonden
-              </div>
-            )}
-
-            {!isLoading && sorted.map(s => (
-              <button
-                key={s.id}
-                onClick={() => setSelected(s)}
-                className={`w-full text-left px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition ${
-                  selected?.id === s.id ? 'bg-pointer/5 border-l-2 border-pointer' : ''
-                }`}
-              >
-                <div className="flex items-start gap-2.5">
-                  <div className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${PRIORITY_COLOR[s.status] ?? 'bg-slate-400'}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className="text-xs text-slate-500 truncate">
-                        {s.anonymous ? 'Anoniem' : (s.contact_email ?? 'Anoniem')}
-                      </span>
-                      <span className="text-xs text-slate-400 shrink-0">{timeAgo(s.created_at)}</span>
-                    </div>
-                    {s.topics && (
-                      <div className="text-[11px] text-pointer mb-0.5 truncate">
-                        {s.topics.name}
-                        {s.topics.icon && ` ${s.topics.icon}`}
-                      </div>
-                    )}
-                    <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-2 leading-snug">
-                      {s.content.slice(0, 120)}…
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      <span className="text-[10px] border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 text-slate-500">
-                        {TYPE_NL[s.type] ?? s.type}
-                      </span>
-                      {(s.labels ?? []).slice(0, 2).map(l => (
-                        <span key={l} className="text-[10px] border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 text-slate-400">
-                          {l}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-
-            {!isLoading && sorted.length > 0 && (
-              <div className="px-4 py-3 text-xs text-slate-400 text-center">
-                {sorted.length} van {subs.length} inzendingen
-              </div>
-            )}
+            </div>
           </div>
+        </button>
+      ))}
+
+      {!isLoading && sorted.length > 0 && (
+        <div className="px-4 py-3 text-xs text-slate-400 text-center">
+          {sorted.length} van {subs.length} inzendingen
+        </div>
+      )}
+    </div>
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Render — mobile: single pane, desktop: split
+  // ─────────────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="flex flex-col bg-stone-50 dark:bg-slate-950" style={{ height: 'calc(100vh - 4rem)' }}>
+
+      {/* ── MOBILE layout ──────────────────────────────────────────────────
+           Show either the list OR the detail, never both side by side.
+           The detail slides in from the right.                           */}
+      <div className="flex flex-col flex-1 overflow-hidden md:hidden">
+        <AnimatePresence initial={false}>
+          {!showDetail ? (
+            /* List view */
+            <motion.div
+              key="list"
+              initial={{ x: 0 }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ duration: 0.22, ease: 'easeInOut' }}
+              className="flex flex-col flex-1 overflow-hidden"
+            >
+              {FilterHeader}
+              {SubmissionList}
+            </motion.div>
+          ) : (
+            /* Detail view */
+            <motion.div
+              key="detail"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ duration: 0.22, ease: 'easeInOut' }}
+              className="flex flex-col flex-1 overflow-hidden"
+            >
+              <DetailPanel
+                sub={selected!}
+                onUpdate={patchSelected}
+                onBack={() => setSelected(null)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── DESKTOP layout ─────────────────────────────────────────────────
+           Fixed left column (filters + list) + flexible right (detail).  */}
+      <div className="hidden md:flex flex-1 overflow-hidden">
+
+        {/* Left column */}
+        <div className="w-[380px] shrink-0 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900">
+          {FilterHeader}
+          {SubmissionList}
         </div>
 
-        {/* Right: detail */}
+        {/* Right column */}
         <div className="flex-1 overflow-hidden">
           {selected ? (
             <AnimatePresence mode="wait">
