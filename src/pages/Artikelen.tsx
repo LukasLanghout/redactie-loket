@@ -1,73 +1,24 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, MessageSquare } from 'lucide-react';
-
-const ARTICLES = [
-  {
-    slug: 'wachttijden-ggz',
-    title: 'Maanden wachten op de GGZ: jongeren in de knel',
-    excerpt:
-      'Wachtlijsten in de jeugd-GGZ lopen op tot meer dan een jaar. Hulpverleners luiden de noodklok en ouders vertellen wat er in die tijd op het spel staat.',
-    topic: 'Gezondheidszorg',
-    tag: 'Onderzoek',
-    date: '12 mei 2026',
-    accent: '#00bcd4',
-    emoji: '🏥',
-    body: `De wachtlijsten in de Nederlandse jeugd-GGZ zijn in de afgelopen drie jaar verdubbeld. Uit cijfers die Redactieloket opvroeg bij zeventien grote aanbieders blijkt dat jongeren gemiddeld 14 maanden wachten voor een eerste behandeling. In sommige regio's loopt dat op tot meer dan twee jaar.
-
-Ouders en hulpverleners zijn wanhopig. "We zien kinderen verslechteren terwijl ze op een lijst staan," zegt een orthopedagoog die anoniem wil blijven. "Dat is niet te verdedigen."
-
-Herken jij dit? Heb jij zelf gewacht, of wacht je nog? Stuur ons jouw verhaal — anoniem mag.`,
-  },
-  {
-    slug: 'huisjesmelkers-randstad',
-    title: 'Schimmige huisbazen: hoe huurders worden uitgeknepen',
-    excerpt:
-      'In de Randstad rekenen verhuurders honderden euro\'s te veel huur. We zoeken huurders die ervaringen willen delen — anoniem mag.',
-    topic: 'Wonen',
-    tag: 'Lopend onderzoek',
-    date: '5 mei 2026',
-    accent: '#26a69a',
-    emoji: '🏠',
-    body: `Uit een analyse van meer dan 400 huurcontracten die Redactieloket ontving, blijkt dat een op de vijf huurders in de grote steden méér betaalt dan het wettelijk toegestane maximum. Gemiddeld gaat het om €280 per maand te veel.
-
-De meeste huurders weten niet dat ze naar de Huurcommissie kunnen stappen, of durven dit niet uit angst de woning te verliezen. Verhuurders spelen daar bewust op in.
-
-Ben jij gedupeerd? Deel je huurcontract en ervaring met ons — wij analyseren het gratis en anoniem.`,
-  },
-  {
-    slug: 'lerarentekort-basisschool',
-    title: 'Lerarentekort: noodgrepen op basisscholen onthuld',
-    excerpt:
-      'Directeuren grijpen naar bedenkelijke noodoplossingen om hun roosters rond te krijgen. Wat zie jij gebeuren op de school van je kinderen?',
-    topic: 'Onderwijs',
-    tag: 'Reportage',
-    date: '28 april 2026',
-    accent: '#7c4dff',
-    emoji: '🎓',
-    body: `Basisscholen in Nederland combineren klassen, zetten ouders voor de klas en huren zij-instromers in zonder opleiding. Een directeur die anoniem wil blijven: "We doen wat we kunnen, maar dit is niet hoe je kinderen moet leren."
-
-Redactieloket sprak met twintig directeuren en vijftig ouders verspreid over het land. De conclusie: het lerarentekort raakt allang niet meer alleen de Randstad. Ook in Friesland, Zeeland en Limburg staan klassen wekenlang zonder vaste leraar.
-
-Zie jij dit ook op de school van jouw kind? We horen het graag.`,
-  },
-] as const;
+import { ARTICLES } from '../data/articles';
 
 export default function Artikelen() {
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-6 py-12">
+
         {/* Header */}
         <div className="mb-12">
           <div className="text-xs uppercase tracking-widest text-pointer mb-2">Nieuws & reportages</div>
           <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">Artikelen</h1>
           <p className="text-slate-600 dark:text-slate-400 max-w-2xl">
-            Onze onderzoeken en reportages. Herken jij iets in een verhaal? Stuur een tip — het onderwerp is dan al ingevuld.
+            Onze onderzoeken en reportages. Herken jij iets in een verhaal? Klik op een artikel om het te lezen en stuur direct een tip.
           </p>
         </div>
 
         {/* Article list */}
-        <div className="space-y-10">
+        <div className="space-y-6">
           {ARTICLES.map((a, i) => (
             <motion.article
               key={a.slug}
@@ -75,15 +26,17 @@ export default function Artikelen() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.45, delay: i * 0.05 }}
-              className="grid md:grid-cols-[200px_1fr] gap-0 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden"
+              className="grid md:grid-cols-[200px_1fr] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden"
             >
-              {/* Emoji tile */}
-              <div
-                className="flex items-center justify-center text-6xl h-48 md:h-auto"
+              {/* Emoji tile — links to article */}
+              <Link
+                to={`/artikelen/${a.slug}`}
+                className="flex items-center justify-center text-6xl h-48 md:h-auto hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: a.accent + '22' }}
+                aria-hidden
               >
-                <span aria-hidden>{a.emoji}</span>
-              </div>
+                <span>{a.emoji}</span>
+              </Link>
 
               {/* Content */}
               <div className="p-7 flex flex-col">
@@ -97,19 +50,34 @@ export default function Artikelen() {
                   <span className="text-xs text-slate-400">{a.topic} · {a.date}</span>
                 </div>
 
-                <h2 className="font-serif text-2xl leading-snug mb-3">{a.title}</h2>
-                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4 flex-1">
-                  {a.body}
+                <Link to={`/artikelen/${a.slug}`} className="group">
+                  <h2 className="font-serif text-2xl leading-snug mb-3 group-hover:text-pointer transition-colors">
+                    {a.title}
+                  </h2>
+                </Link>
+
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-5 flex-1">
+                  {a.excerpt}
                 </p>
 
-                <Link
-                  to={`/intake?topic=${encodeURIComponent(a.topic)}&article=${encodeURIComponent(a.title)}`}
-                  className="group inline-flex items-center gap-2 bg-pointer px-4 py-2.5 text-sm font-medium text-pointer-foreground w-fit hover:opacity-90 transition-opacity"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Stuur een tip over dit artikel
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
+                <div className="flex flex-wrap gap-3">
+                  <Link
+                    to={`/artikelen/${a.slug}`}
+                    className="group inline-flex items-center gap-2 border border-slate-300 dark:border-slate-700 px-4 py-2.5 text-sm hover:border-slate-900 dark:hover:border-stone-50 transition"
+                  >
+                    Lees artikel
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                  <Link
+                    to={`/artikelen/${a.slug}#tip`}
+                    onClick={() => {/* handled by page */}}
+                    className="group inline-flex items-center gap-2 bg-pointer px-4 py-2.5 text-sm font-medium text-pointer-foreground hover:opacity-90 transition"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Stuur een tip
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </div>
               </div>
             </motion.article>
           ))}

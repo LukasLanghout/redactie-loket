@@ -164,13 +164,11 @@ export default function Home() {
                     {a.excerpt}
                   </p>
                   <Link
-                    to={`/intake?topic=${encodeURIComponent(a.topic)}&article=${encodeURIComponent(
-                      a.title
-                    )}`}
+                    to={`/artikelen/${a.slug}`}
                     className="group inline-flex items-center justify-between gap-2 bg-pointer px-4 py-3 text-sm font-medium text-pointer-foreground transition-opacity hover:opacity-90"
                   >
                     <span className="inline-flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4" /> Stuur tip over dit artikel
+                      <MessageSquare className="h-4 w-4" /> Lees artikel & stuur tip
                     </span>
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Link>

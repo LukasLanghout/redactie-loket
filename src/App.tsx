@@ -4,6 +4,7 @@ import { isSupabaseConfigured } from './lib/supabase';
 import Home from './pages/Home';
 import Intake from './pages/Intake';
 import Artikelen from './pages/Artikelen';
+import ArtikelDetail from './pages/ArtikelDetail';
 import Tips from './pages/Tips';
 import Login from './pages/Login';
 import MijnTips from './pages/MijnTips';
@@ -33,6 +34,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...`}
         <Route path="/" element={<Home />} />
         <Route path="/intake" element={<Intake />} />
         <Route path="/artikelen" element={<Artikelen />} />
+        <Route path="/artikelen/:slug" element={<ArtikelDetail />} />
         <Route path="/tips" element={<Tips />} />
         <Route path="/programmas" element={<Programmas />} />
         <Route path="/login" element={<Login />} />
