@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowUp, Check, Paperclip, ShieldCheck, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
 import { ai } from '../lib/ai';
 import type { Topic } from '../lib/types';
 
@@ -38,7 +37,6 @@ const PHONE_PROMPT = "Mogen we je bellen? Telefoonnummer is optioneel.";
 const FILES_PROMPT = "Heb je documenten, foto's of opnames als bewijs? Sleep ze hier of klik op 📎. Klaar zonder bijlage? Typ 'klaar'.";
 
 export default function Intake() {
-  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const preselectedTopic = searchParams.get('topic');
   const preselectedArticle = searchParams.get('article');
@@ -285,21 +283,7 @@ export default function Intake() {
   async function finalize() {
     setSubmitting(true);
     try {
-      // Files: only logged-in users can upload (storage path needs user ID).
-      // Anonymous submitters get a friendly message; the textual tip still arrives.
       const uploaded: string[] = [];
-      if (user) {
-        for (const f of files) {
-          const path = `${user.id}/${Date.now()}-${f.name}`;
-          const { error: upErr } = await supabase.storage.from('attachments').upload(path, f);
-          if (!upErr) {
-            const { data } = supabase.storage.from('attachments').getPublicUrl(path);
-            uploaded.push(data.publicUrl);
-          }
-        }
-      } else if (files.length > 0) {
-        toast('Bestanden konden niet worden geüpload zonder account — alleen de tekst is verstuurd.', { icon: 'ℹ️' });
-      }
 
       const followupBlock = followups
         .map((f) => `• ${f.q}\n  → ${f.a}`)
@@ -314,7 +298,7 @@ export default function Intake() {
       const title = story.split(/[.!?\n]/)[0].slice(0, 80) || (topicName ?? 'Tip via intake-assistent');
 
       const { error } = await supabase.from('submissions').insert({
-        user_id: user?.id ?? null,
+        user_id: null,
         topic_id: topicId,
         type: 'tip',
         title,
@@ -322,16 +306,13 @@ export default function Intake() {
         contact_name: name || null,
         contact_email: email || null,
         contact_phone: phone || null,
-        anonymous: !user && !name && !email && !phone,
+        anonymous: !name && !email && !phone,
         file_url: uploaded[0] ?? null,
         status: 'pending',
       });
       if (error) throw error;
       setStep('done');
-      const doneMsg = user
-        ? 'Bedankt voor je tip. We hebben alles ontvangen en de redactie kijkt er zo snel mogelijk naar. Je kunt de status volgen op je profielpagina.'
-        : 'Bedankt voor je tip. We hebben alles ontvangen en de redactie kijkt er zo snel mogelijk naar.';
-      await addBot(doneMsg);
+      await addBot('Bedankt voor je tip. We hebben alles ontvangen en de redactie kijkt er zo snel mogelijk naar.');
       toast.success('Tip verstuurd');
     } catch (e) {
       toast.error((e as Error).message);
@@ -374,9 +355,6 @@ export default function Intake() {
                 </div>
               </div>
             </div>
-            <Link to="/submit" className="text-xs text-slate-500 hover:text-pointer">
-              Liever het klassieke formulier? →
-            </Link>
           </div>
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-6 space-y-3">
@@ -489,10 +467,7 @@ export default function Intake() {
 
           {step === 'done' && (
             <div className="border-t border-slate-200 dark:border-slate-800 px-5 py-4 bg-stone-50 dark:bg-slate-950 flex gap-3">
-              <Link to="/profile" className="bg-slate-900 dark:bg-stone-50 text-stone-50 dark:text-slate-900 px-4 py-2 text-sm font-medium hover:opacity-90">
-                Bekijk mijn tip
-              </Link>
-              <Link to="/" className="text-sm text-slate-500 hover:text-pointer self-center">
+              <Link to="/" className="bg-slate-900 dark:bg-stone-50 text-stone-50 dark:text-slate-900 px-4 py-2 text-sm font-medium hover:opacity-90">
                 Terug naar home
               </Link>
             </div>
@@ -516,12 +491,10 @@ export default function Intake() {
                 </li>
               ))}
             </ul>
-            {!user && (
-              <div className="mt-4 p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs">
-                <ShieldCheck className="h-3 w-3 inline mr-1" />
-                Je tipt anoniem. Geen account nodig. Bestanden uploaden vereist wel een account.
-              </div>
-            )}
+            <div className="mt-4 p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs">
+              <ShieldCheck className="h-3 w-3 inline mr-1" />
+              Je tipt anoniem. Geen account nodig.
+            </div>
             {files.length > 0 && (
               <div className="mt-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Bijlagen</div>
