@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, ChevronDown, Sparkles, Send, Tag, X,
-  Mail, Phone, FileText, MessageSquare, Plus, ArrowLeft,
+  Mail, Phone, FileText, MessageSquare, Plus, ArrowLeft, Wand2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
@@ -147,9 +147,10 @@ function DetailPanel({
   const [summary, setSummary]       = useState<any>(null);
   const [loadingAi, setLoadingAi]   = useState(false);
   const [replyText, setReplyText]   = useState('');
-  const [sending, setSending]       = useState(false);
-  const [labelInput, setLabelInput] = useState('');
-  const [showLabel, setShowLabel]   = useState(false);
+  const [sending, setSending]         = useState(false);
+  const [suggestingReply, setSuggestingReply] = useState(false);
+  const [labelInput, setLabelInput]   = useState('');
+  const [showLabel, setShowLabel]     = useState(false);
   const labelRef = useRef<HTMLInputElement>(null);
 
   const { data: replies = [], refetch: refetchReplies } = useQuery<Reply[]>({
@@ -176,6 +177,19 @@ function DetailPanel({
     if (error) { toast.error('Status bijwerken mislukt'); return; }
     onUpdate({ status });
     qc.invalidateQueries({ queryKey: ['redactie-submissions'] });
+  }
+
+  async function suggestReply() {
+    setSuggestingReply(true);
+    try {
+      const r = await ai.suggestReply({ content: sub.content, topicName: sub.topics?.name });
+      if (r.reply) setReplyText(r.reply);
+      toast.success('Voorstel klaar — pas het aan naar wens');
+    } catch {
+      toast.error('AI-voorstel kon niet worden geladen');
+    } finally {
+      setSuggestingReply(false);
+    }
   }
 
   async function sendReply() {
@@ -333,8 +347,20 @@ function DetailPanel({
 
           {(sub.contact_email || sub.contact_phone) && (
             <div className="mt-3">
-              <div className="text-xs text-slate-400 mb-1.5">
-                Reactie gaat naar {sub.contact_email ?? sub.contact_phone}
+              <div className="flex items-center justify-between mb-1.5 gap-2">
+                <div className="text-xs text-slate-400">
+                  Reactie gaat naar {sub.contact_email ?? sub.contact_phone}
+                </div>
+                <button
+                  onClick={suggestReply}
+                  disabled={suggestingReply}
+                  className="flex items-center gap-1.5 text-xs border border-pointer text-pointer px-2.5 py-1 hover:bg-pointer hover:text-pointer-foreground transition disabled:opacity-40 shrink-0"
+                >
+                  {suggestingReply
+                    ? <><span className="h-3 w-3 border-2 border-pointer border-t-transparent rounded-full animate-spin" /> Moment…</>
+                    : <><Wand2 className="h-3 w-3" /> AI-voorstel</>
+                  }
+                </button>
               </div>
               <div className="border border-slate-200 dark:border-slate-700 focus-within:border-pointer transition">
                 <textarea

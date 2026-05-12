@@ -65,7 +65,8 @@ const STATIC_SYSTEMS: Record<string, string> = {
   improve:    'Je bent een journalist die doorvraagt om tips bruikbaarder te maken. Antwoord ALTIJD als geldig JSON.',
   analyze:    'Je bent een redactie-assistent. Analyseer de tip bondig. Antwoord ALTIJD als geldig JSON.',
   categorize: 'Je bent een redactionele assistent die tips classificeert. Antwoord ALTIJD als geldig JSON.',
-  title:      'Je bent een redacteur die een korte journalistieke koptitel bedenkt. Antwoord ALTIJD als geldig JSON.',
+  title:         'Je bent een redacteur die een korte journalistieke koptitel bedenkt. Antwoord ALTIJD als geldig JSON.',
+  suggest_reply: 'Je bent een redacteur bij een onderzoeksredactie. Schrijf een reactie naar een tipgever. Antwoord ALTIJD als geldig JSON.',
 };
 
 // ── Prompt builders ───────────────────────────────────────────────────────────
@@ -110,6 +111,23 @@ Onderwerp: ${payload.topicName ?? '(onbekend)'}
 Titel: ${payload.title}
 Inhoud: ${payload.content}
 Geef ALLEEN JSON: {"summary":"<max 3 zinnen>","themes":[],"entities":[],"keywords":[],"piiTypes":[],"hasPii":false,"priority":"low","priorityScore":3,"sentiment":"neutraal","completenessScore":5,"reasoning":"<1-2 zinnen>"}`;
+  }
+
+  if (task === 'suggest_reply') {
+    return `Je bent een redacteur bij een onderzoeksjournalistiek platform. Schrijf een warme, professionele reactie naar iemand die onderstaande tip heeft ingediend.
+
+De reactie moet:
+- De tipgever bedanken en laten merken dat je het serieus neemt
+- Kort aangeven wat jullie met de tip gaan doen of welke vervolgstap je overweegt
+- Eventueel één concrete vervolgvraag stellen als er iets ontbreekt
+- In gewoon Nederlands, zonder jargon — alsof je een collega aanspreekt
+- Max 4-5 zinnen
+
+Onderwerp: ${payload.topicName ?? '(onbekend)'}
+Tip:
+${payload.content}
+
+Geef ALLEEN JSON: {"reply":"<jouw reactie>"}`;
   }
 
   if (task === 'title') {

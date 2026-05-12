@@ -65,4 +65,7 @@ export const ai = {
 
   title: (payload: { content: string; topicName?: string | null }) =>
     call<TitleResult>({ task: 'title', payload }),
+
+  suggestReply: (payload: { content: string; topicName?: string | null }) =>
+    call<{ task: string; reply: string }>({ task: 'suggest_reply', payload }),
 };
